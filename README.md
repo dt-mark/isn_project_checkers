@@ -6,4 +6,3 @@ If you found this randomly and want to know what we're doing, it's a checkers ga
 Please:
 
 - Do not claim this is your own work
-- Do not redistribute without our consent
