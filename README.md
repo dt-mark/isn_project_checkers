@@ -1,1 +1,1 @@
-# isn_project_checkers
+# ISN Project Checkers
