@@ -1,1 +1,0 @@
-# ISN Project Checkers
