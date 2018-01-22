@@ -175,7 +175,7 @@ def highlight(i, j, player, behaviour=1):
         if samePlayerCondition: continue
         #Si la case est vide
         if empty(ni(1), nj(1)) and behaviour != -1 \
-        and onePlayerCanEat[player] == [(-1, -1)]:
+        and onePlayerCanEat[player] == [(-1, -1)] and not highlightStuck:
             caseColour(ni(1), nj(1), colour["green"])
     return False
     
