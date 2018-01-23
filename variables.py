@@ -6,6 +6,16 @@ dico = {
   "bSize":"Defines the size, in pixels, of one cell (40px by default)"
   "playerCanvasSize":"Defines the size, in pixels, of one player \
                      (smaller than the size of the cell)"
+  "b":" "
+  "c":" "
+  "players":" "
+  "player":" "
+  "blackCount":" "
+  "whiteCount":" "
+  "selectedPlayer":" "
+  "highlightStuck":" "
+  "colour":" "
+  "Player":" "
 }
 
 while True:
@@ -15,5 +25,5 @@ while True:
   except:
     print("Not in the database")
   finally:
-    if uInput == "exit":
+    if uInput == "exit" or uInput == "EXIT" or uInput == "Exit":
       break
