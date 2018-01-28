@@ -4,6 +4,7 @@
 import os, sys
 sys.path.append("D:\Documents\CPython\Projet ISN\modules")
 #from mainInit import *
+from math import *
 
 from tkinter import *
 window = Tk()
@@ -23,9 +24,11 @@ playerCanvasSize = 30
 b = [[0 for i in range(gSize+1)] for j in range(gSize+1)]
 c = [['' for i in range(gSize+1)] for j in range(gSize+1)]
 
-players = [[-1 for i in range(gSize+1)] for j in range(gSize+1)]
-player = -1
-blackCount, whiteCount = 0, 0
+players, player = [[-1 for i in range(gSize+1)] for j in range(gSize+1)], -1
+scoreDisplay = {-1:StringVar(), 1:StringVar()}
+scoreDisplay[-1].set(str(gSize*2))
+scoreDisplay[+1].set(str(gSize*2))
+scorePlayer = {-1:[0 for i in range(gSize*2)],1:[0 for i in range(gSize*2)]}
 
 selectedPlayer = -1
 highlightStuck = False
@@ -43,38 +46,51 @@ colour = {
 """--------------------------------------------------------------------------"""
 
 class Player:
-    def __init__(self, _x, _y, _type):
-        self.x = int(_x*bSize+(bSize-playerCanvasSize)/2) 
-        self.y = int(_y*bSize+(bSize-playerCanvasSize)/2)
-        self.xTo, self.yTo = self.x, self.y
+    def __init__(self, _x, _y, _type, _score=0):
+        self.score = _score
+        parent = board if self.score == 0 else mainFrame
+        if self.score == 0: self.x, self.y = cellToPixel(_x), cellToPixel(_y)
+        else: self.x, self.y = _x, _y
+        self.xTo, self.yTo, self.sTo = self.x, self.y, playerCanvasSize
         self.type = _type
-        self.refreshRate = 9
-        col1 = colour["whitePlayer"] if _type == +1 else colour["blackPlayer"]
-        col2 = colour["whitePlayer"] if _type == -1 else colour["blackPlayer"]
-        self.canvas = Canvas(board, width=playerCanvasSize, \
+        self.refreshRate = 3
+        col1 = colour["whitePlayer"] if _type == -1 else colour["blackPlayer"]
+        col2 = colour["whitePlayer"] if _type == +1 else colour["blackPlayer"]
+        self.canvas = Canvas(parent, width=playerCanvasSize, \
                              height=playerCanvasSize, \
                              bg=c[i][j], bd=0, highlightthickness=0)
-        #self.canvas.create_oval(2, 2, playerCanvasSize-2, playerCanvasSize-2, \
-        #                        fill=col1, width=0)
-        self.canvas.create_rectangle(0, 0, playerCanvasSize, playerCanvasSize, \
-                                     fill=col1, outline=col2, width=8)
+        #self.canvasItem = self.canvas.create_oval(2, 2, playerCanvasSize-2, \
+        #                              playerCanvasSize-2, fill=col1, width=0)
+        self.canvasItem = self.canvas.create_rectangle(0, 0, playerCanvasSize, \
+                                      playerCanvasSize, fill=col1, outline=col2,\
+                                      width=8)
         self.canvas.place(x=self.x, y=self.y)
         self.canvas.bind("<1>", lambda event, x=i, y=j : click(event,x,y))
         self.update()
     def changePosition(self, _x, _y):
         global players
-        _i, _j = cell(self.x), cell(self.y)
-        players[_i][_j] = -1
-        players[_x][_y] = self
-        players[_x][_y].canvas.bind("<1>", lambda event, x=_x, y=_y : \
-                                    click(event,x,y))
-        self.x = int(_x*bSize+(bSize-playerCanvasSize)/2)
-        self.y = int(_y*bSize+(bSize-playerCanvasSize)/2)
+        if self.score == 0:
+            _i, _j = pixelToCell(self.x), pixelToCell(self.y)
+            players[_i][_j] = -1
+            players[_x][_y] = self
+            players[_x][_y].canvas.bind("<1>", lambda event, x=_x, y=_y : \
+                                        click(event,x,y))
+            self.x = cellToPixel(_x)
+            self.y = cellToPixel(_y)
+        else:
+            self.x = _x
+            self.y = _y
         Misc.lift(self.canvas, aboveThis=None)
     def update(self):
-        self.xTo = lerp(self.xTo, self.x, 0.2)
-        self.yTo = lerp(self.yTo, self.y, 0.2)
+        speed = 0.2*self.refreshRate*0.1 if self.score == 0 else 0.15*self.refreshRate*0.1
+        self.xTo = lerp(self.xTo, self.x, speed)
+        self.yTo = lerp(self.yTo, self.y, speed)
         self.canvas.place(x=self.xTo, y=self.yTo)
+        if self.score == 1:
+            self.sTo = lerp(self.sTo, playerCanvasSize/2, speed)
+            self.canvas.configure(width=self.sTo,height=self.sTo)
+            self.canvas.coords(self.canvasItem, 0, 0, self.sTo, self.sTo)
+            self.canvas.itemconfigure(self.canvasItem, width=6)
         self.canvas.after(self.refreshRate, self.update)
 
 """--------------------------------------------------------------------------"""
@@ -96,6 +112,10 @@ def isBetween(x, a, b):
     b = max(a, b)
     if x >= a and x <= b: return True
     else: return False
+"""Fonction qui quantifie combien de cases il y a entre deux coordonnées"""
+def movementVector(i1, j1, i2, j2):
+    norm = sqrt((i1-i2)**2+(j1-j2)**2)
+    return i1-i2, j1-j2, norm
 """Fonction qui retourne le type de la case"""
 def case(i, j):
     if (i%2 == 0 and j%2 == 0)\
@@ -125,13 +145,26 @@ def resetCaseColour():
     for i in range(gSize):
         for j in range(gSize):
             caseColour(i, j, -1)
+"""Fonction qui convertit un nombre en string à deux caractères"""
+def intToString(integer):
+    integer = int(integer)
+    if isBetween(integer, -9, 9):
+        return "0"+str(integer)
+    else:
+        return str(integer)
 """Fonction qui retourne si une case est vide (sans jetons) ou pas"""
 def empty(i, j):
     if players[i][j] == -1: return True
     else: return False
-"""Fonction qui convertit des coordonnées en index de tableau"""
-def cell(x):
+"""Fonction qui convertit des coordonnées en index de tableau et vice verse"""
+def pixelToCell(x):
     return (x//bSize)
+def cellToPixel(x):
+    return int(x*bSize+(bSize-playerCanvasSize)/2)
+"""Fonction qui convertit des coordonnées du board en coordonnées du frame"""
+def boardToFrame(a, xOrY):
+    if xOrY == "x": return a+4
+    if xOrY == "y": return a+25*2+4
 """Fonction appelée lorsqu'on ferme le jeu"""
 def closeWindow():
     window.destroy()
@@ -181,7 +214,8 @@ def highlight(i, j, player, behaviour=1):
     
 """Fonction Principale"""
 def click(event, i, j):
-    global player, selectedPlayer, highlightStuck, onePlayerCanEat
+    global player, selectedPlayer, highlightStuck, onePlayerCanEat, \
+           blackCount, whiteCount
     if selectedPlayer != -1: player = selectedPlayer.type
     #Si on clique sur un joueur,
     if players[i][j] != -1 and players[i][j] != selectedPlayer:
@@ -194,13 +228,45 @@ def click(event, i, j):
     else:
         #Si elle est en surbrillance,
         if c[i][j] == colour["green"] and empty(i, j):
+            #On bouge le joueur
             onePlayerCanEat = {-1:[(-1, -1)], 1:[(-1, -1)]}
             resetCaseColour() 
+            playerMovement = movementVector(pixelToCell(selectedPlayer.x), \
+                                            pixelToCell(selectedPlayer.y), i, j)
             selectedPlayer.changePosition(i, j)
             player = selectedPlayer.type
             selectedPlayer = -1
             highlightStuck = False
-            highlight(i, j, player, behaviour=0)
+            #Si on est en train de manger un joueur,
+            if playerMovement[2] > sqrt(2): 
+                highlight(i, j, player, behaviour=0)
+                eatenPlayerX = i+int(playerMovement[0]/2)
+                eatenPlayerY = j+int(playerMovement[1]/2)
+                eatenPlayer = players[eatenPlayerX][eatenPlayerY]
+                ePlayerType = eatenPlayer.type
+                scoreDisplay[ePlayerType].set\
+                (intToString(int(scoreDisplay[ePlayerType].get())+1))
+                scorePlayer[ePlayerType]\
+                           [int(scoreDisplay[ePlayerType].get())] \
+                           = Player(boardToFrame(cellToPixel(eatenPlayerX), "x"),\
+                                    boardToFrame(cellToPixel(eatenPlayerY), "y"),\
+                                    ePlayerType, _score=1)
+                scorePlayersSpacing = (150-((1.5+2)+(5*15)))/6
+                if ePlayerType == 1:
+                    scorePositionX = 450+scorePlayersSpacing\
+                                     +(15+scorePlayersSpacing)\
+                                     *((int(scoreDisplay[ePlayerType].get())-1)%5)
+                    scorePositionY = 200+10+((int(scoreDisplay[ePlayerType].get())-1)//5)*(15+4)
+                if ePlayerType == -1:
+                    scorePositionX = scoreBoardSize[0]/2+450+scorePlayersSpacing\
+                                     +(15+scorePlayersSpacing)\
+                                     *((int(scoreDisplay[ePlayerType].get())-1)%5)
+                    scorePositionY = 200+10+((int(scoreDisplay[ePlayerType].get())-1)//5)*(15+4)
+                scorePlayer[ePlayerType]\
+                           [int(scoreDisplay[ePlayerType].get())]\
+                           .changePosition(scorePositionX, scorePositionY)
+                eatenPlayer.canvas.destroy()
+                players[eatenPlayerX][eatenPlayerY] = -1
         #Si elle est vierge et qu'on est pas coincés dans un combo,
         elif not highlightStuck:
             resetCaseColour() 
@@ -218,8 +284,10 @@ def click(event, i, j):
 """--------------------------------------------------------------------------"""
 
 """Arrangement des frames principales"""
+window.configure(bg=colour["whitePlayer"])
+
 mainFrame = Frame(window)
-mainFrame.pack(padx=windowBorder, pady=windowBorder, fill="both")
+mainFrame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
 
 topFrame = Frame(mainFrame)
 topFrame.grid(column=0, row=0)
@@ -229,6 +297,76 @@ board.grid(column=0, row=1)
 
 sideFrame = Frame(mainFrame)
 sideFrame.grid(column=1, row=1)
+
+scoreBoardSize, scoreBoardBorder = (300, 150), 6
+scoreBoard = Canvas(sideFrame, bg="black", \
+                    width=scoreBoardSize[0], height=scoreBoardSize[1])
+scoreBoard.create_rectangle(scoreBoardBorder, scoreBoardBorder, \
+                            scoreBoardSize[0]-scoreBoardBorder/2, \
+                            scoreBoardSize[1]-scoreBoardBorder/2, \
+                            fill=colour["black"])
+scoreBoard.create_rectangle(scoreBoardBorder, scoreBoardBorder, \
+                            scoreBoardSize[0]/2-1.5, \
+                            scoreBoardSize[1]-scoreBoardBorder/2, \
+                            fill=colour["white"])
+scoreBoard.create_rectangle(scoreBoardSize[0]/2+1.5, scoreBoardBorder, \
+                            scoreBoardSize[0]-scoreBoardBorder/2, \
+                            scoreBoardSize[1]-scoreBoardBorder/2, \
+                            fill=colour["black"])
+scoreBoard.create_line(scoreBoardSize[0]/2, scoreBoardBorder, \
+                       scoreBoardSize[0]/2, scoreBoardSize[1]-scoreBoardBorder/2, \
+                       fill="black", width=6)
+scoreBoard.grid(row=0, column=0)
+
+playerScoreSize = 60
+halfScoreBoardSize = scoreBoardSize[0]/2
+playerScoreOffset = (halfScoreBoardSize-playerScoreSize*2)/2 + playerScoreSize/6
+blackPlayerScore = Label(scoreBoard, textvariable=scoreDisplay[-1], \
+                         font=("Trebuchet MS", playerScoreSize, "bold"), \
+                         fg=colour["blackPlayer"], bg=colour["white"])
+blackPlayerScore.place(x=playerScoreOffset, \
+                       y=(scoreBoardSize[1]-playerScoreSize)/4)
+whitePlayerScore = Label(scoreBoard, textvariable=scoreDisplay[1], \
+                         font=("Trebuchet MS", playerScoreSize, "bold"), \
+                         fg=colour["whitePlayer"], bg=colour["black"])
+whitePlayerScore.place(x=halfScoreBoardSize+playerScoreOffset, \
+                       y=(scoreBoardSize[1]-playerScoreSize)/4)
+
+underScoreBoard = Canvas(sideFrame, bg="white", \
+                         width=scoreBoardSize[0], height=110)
+underScoreBoard.create_rectangle(scoreBoardBorder/2, scoreBoardBorder/2, \
+                                 scoreBoardSize[0], 88, \
+                                 fill=colour["white"], width=scoreBoardBorder/2)
+underScoreBoard.create_rectangle(scoreBoardBorder/2, scoreBoardBorder/2, \
+                                 scoreBoardSize[0]/2, 88, \
+                                 fill=colour["black"], width=scoreBoardBorder/2)
+underScoreBoard.create_rectangle(scoreBoardSize[0]/2, scoreBoardBorder/2, \
+                                 scoreBoardSize[0], 88, \
+                                 fill=colour["white"], width=scoreBoardBorder/2)
+underScoreBoard.create_line(scoreBoardSize[0]/2, 0, \
+                       scoreBoardSize[0]/2, 88, \
+                       fill="black", width=3)
+underScoreBoard.grid(row=1, column=0)
+underScoreBoardLine = Canvas(mainFrame, width=scoreBoardSize[0], height=5, \
+                             highlightthickness=0, relief='ridge', bg="black", bd=0)
+#underScoreBoardLine.place(x=450-1, y=200)
+
+cancelText = Label(sideFrame, text="ANNULER", font=("Trebuchet MS", 15))
+cancelText.grid(row=2, column=0)
+
+restartText = Label(sideFrame, text="REDÉMARRER", font=("Trebuchet MS", 15))
+restartText.grid(row=3, column=0)
+
+quitText = Label(sideFrame, text="QUITTER", font=("Trebuchet MS", 15))
+quitText.grid(row=4, column=0)
+
+emptySpace = Canvas(sideFrame, height=40)
+emptySpace.grid(row=5, column=0)
+
+window.protocol("WM_DELETE_WINDOW", closeWindow)
+title = Label(topFrame, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), \
+              height=1)
+title.pack()
 
 """Arrangement de la grille"""
 for j in range(gSize):
@@ -245,12 +383,12 @@ for j in range(gSize):
             c[i][j] = colour["black"]
             
             #Placer des jetons
-            if blackCount < gSize*2 and j >= 0:
+            if int(scoreDisplay[-1].get()) > 0 and j >= 0:
                 players[i][j] = Player(i, j, -1)
-                blackCount += 1
-            elif whiteCount < gSize*2 and j >= 6:
+                scoreDisplay[-1].set(intToString(int(scoreDisplay[-1].get())-1))
+            elif int(scoreDisplay[1].get()) > 0 and j >= 6:
                 players[i][j] = Player(i, j, 1)
-                whiteCount += 1
+                scoreDisplay[1].set(intToString(int(scoreDisplay[1].get())-1))
             else:
                 players[i][j] = -1
                 
@@ -265,15 +403,6 @@ for j in range(gSize):
         b[i][j].bind("<1>", lambda event, x=i, y=j : click(event,x,y))
         #Couleur des boutons   
         b[i][j].config(background=c[i][j])
-
-        
-"""Arrangement du reste"""
-title = Label(topFrame, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), height=1)
-title.pack()
-sideCanvas = Canvas(sideFrame, width=500)
-sideCanvas.pack()
-
-window.protocol("WM_DELETE_WINDOW", closeWindow)
 
 """Main"""
 window.mainloop()
