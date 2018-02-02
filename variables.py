@@ -1,3 +1,6 @@
+#Program to know what the variables, fonctions, classes are. Just type the name of something in the code
+#And you will get a more detailed description, most of the time
+
 dico = {
   "windowBorder":"The border between the window and everything else (mainFrame)",
   "onePlayerCanEat":"Dictionnary which stores tuples of the coordinates of the players \nthat are able to eat another player for each player type",
@@ -8,14 +11,15 @@ dico = {
   "c":" ",
   "players":" ",
   "player":" ",
+  "scoreDisplay:" ",
   "blackCount":" ",
   "whiteCount":" ",
   "selectedPlayer":" ",
   "highlightStuck":" ",
-  "colour":"Dictionary which makes easier the colour selection.",
-  "Player":" ",
-  "changePosition":" ",
-  "update":" ",
+  "colour":"Dictionary which makes the colour selection easier.",
+  "Player":"Class, ",
+  "changePosition":"Object of Player class, ",
+  "update":"Object of Player class, ",
   "wrap":" ",
   "lerp":" ",
   "clamp":" ",
