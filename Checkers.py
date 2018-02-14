@@ -1,18 +1,19 @@
 """------------------------------------------------------------------------------------------------------------------"""
-"""----------------------------------------------------MODULES-------------------------------------------------------"""
+"""-------------------------------------------------INITIALISATION---------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
-import os, sys
-
-sys.path.append("D:\Documents\CPython\Projet ISN\modules")
-# from mainInit import *
-from math import *
-from winsound import *
-
 from tkinter import *
 
 window = Tk()
 window.title("PROJET d'ISN")
 window.tk_setPalette(background="white")
+window.resizable(width=False, height=False)
+
+import os
+from basicFunctions import *
+
+from math import *
+from winsound import *
+import webbrowser
 
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------VARIABLES------------------------------------------------------"""
@@ -46,6 +47,7 @@ colour = {
     "black": "#%02X%02X%02X" % (160, 100, 0),
     "blue": "#%02X%02X%02X" % (50, 125, 175),
     "gold": "#%02X%02X%02X" % (255, 160, 60),
+    "purple": "#%02X%02X%02X" % (255, 130, 255),
     "whitePlayer": "white",
     "blackPlayer": "black"
 }
@@ -56,6 +58,7 @@ colour = {
 
 playerObjects = []
 buttonObjects = []
+infoObjects = []
 
 class Player:
 
@@ -113,115 +116,170 @@ class Player:
         self.canvas.itemconfigure(self.canvasItem, fill=self.col1, outline=self.col2)
         self.canvas.after(self.refreshRate, self.update)
 
+class ScoreBoard:
+
+    def __init__(self, _frame):
+        self.scoreBoardSize, self.underScoreBoardSize = (300, 150), (300, 100)
+        self.halfScoreBoardSize = self.scoreBoardSize[0] / 2
+        self.scoreBoardBorder, self.halfScoreBoardBorder = 6, 6 / 2
+        self.canvas = Canvas(_frame, bg="black", \
+                             width=self.scoreBoardSize[0], \
+                             height=self.scoreBoardSize[1] + self.underScoreBoardSize[1])
+        self.canvas.create_rectangle(self.scoreBoardBorder, \
+                                     self.scoreBoardBorder, \
+                                     self.scoreBoardSize[0] / 2 - self.halfScoreBoardBorder, \
+                                     self.scoreBoardSize[1] - self.halfScoreBoardBorder, \
+                                     fill=colour["white"])
+        self.canvas.create_rectangle(self.halfScoreBoardSize + self.halfScoreBoardBorder / 2, \
+                                     self.scoreBoardBorder, \
+                                     self.scoreBoardSize[0] - self.halfScoreBoardBorder, \
+                                     self.scoreBoardSize[1] - self.halfScoreBoardBorder, \
+                                     fill=colour["black"])
+        self.canvas.create_rectangle(self.scoreBoardBorder, \
+                                     self.scoreBoardSize[1] + self.halfScoreBoardBorder / 2, \
+                                     self.halfScoreBoardSize - self.halfScoreBoardBorder, \
+                                     self.scoreBoardSize[1] + self.underScoreBoardSize[1] - self.halfScoreBoardBorder, \
+                                     fill=colour["black"])
+        self.canvas.create_rectangle(self.halfScoreBoardSize + self.halfScoreBoardBorder / 2, \
+                                     self.scoreBoardSize[1] + self.halfScoreBoardBorder / 2, \
+                                     self.underScoreBoardSize[0] - self.halfScoreBoardBorder, \
+                                     self.scoreBoardSize[1] + self.underScoreBoardSize[1] - self.halfScoreBoardBorder, \
+                                     fill=colour["white"])
+        self.playerScoreSize = 60
+        self.playerScoreOffset = (self.halfScoreBoardSize - self.playerScoreSize * 2) / 2 + self.playerScoreSize / 6
+        self.blackPlayerScore = Label(self.canvas, textvariable=scoreDisplay[-1], \
+                                      font=("Trebuchet MS", self.playerScoreSize, "bold"), \
+                                      fg=colour["blackPlayer"], bg=colour["white"])
+        self.blackPlayerScore.place(x=self.playerScoreOffset, \
+                                    y=(self.scoreBoardSize[1] - self.playerScoreSize) / 4)
+        self.whitePlayerScore = Label(self.canvas, textvariable=scoreDisplay[1], \
+                                      font=("Trebuchet MS", self.playerScoreSize, "bold"), \
+                                      fg=colour["whitePlayer"], bg=colour["black"])
+        self.whitePlayerScore.place(x=self.halfScoreBoardSize + self.playerScoreOffset, \
+                                    y=(self.scoreBoardSize[1] - self.playerScoreSize) / 4)
 
 class Button:
 
-    def __init__(self, _type, _text, _size, _frame, _animationType=0):
+    def __init__(self, _frame, _text, _type, _size, _animationType=0, _font="Trebuchet MS", _tag=""):
         buttonObjects.append(self)
         self.animationType = _animationType
         self.refreshRate = 10
-        self.text = _text
-        self.size = _size
+        self.text, self.size, self.type = _text, _size, _type
         self.ww, self.hh = (len(_text)+3) * _size, 1.85 * _size
-        self.canvas = Canvas(_frame, width=self.ww, height=self.hh)
+        self.canvas = Canvas(_frame, width=self.ww, height=self.hh-3)
         self.canvas.label = self.canvas.create_text(self.ww/2, self.hh/2, text=self.text)
-        self.canvas.font = "Trebuchet MS"
-        self.canvas.size = self.size
-        self.canvas.changeSize= 0
-        self.canvas.colourA, self.canvas.colourB, self.canvas.colourT = 255, "white", 255
         self.canvas.arrowSpace = 0
-        self.canvas.style = (self.canvas.font, self.canvas.size)
+        self.canvas.colourA, self.canvas.colourB, self.canvas.colourT = 1, 1, 0.5
+        self.canvas.font, self.canvas.tag = _font, _tag
+        self.canvas.size, self.canvas.aimedSize = self.size, self.size
+        self.canvas.style = (self.canvas.font, self.canvas.size, self.canvas.tag)
         self.canvas.itemconfig(self.canvas.label, font=self.canvas.style)
-        self.canvas.bind("<1>", lambda event, type=_type, anim=self.animationType: buttonPress(event, type, anim))
-        self.canvas.bind("<Enter>", lambda event, t=+1, anim=self.animationType: buttonMouse(event, t, anim))
-        self.canvas.bind("<Leave>", lambda event, t=-1, anim=self.animationType: buttonMouse(event, t, anim))
-        ax1 = self.ww / 2 + (len(self.text) / 2) * self.size
-        ax2 = self.ww / 2 - (len(self.text) / 2) * self.size
-        ay = self.hh / 2
-        self.arrow1 = self.canvas.create_polygon(ax1 + 10, ay, ax1, 0+5, ax1, self.hh-5, fill="white", width=2)
-        self.arrow2 = self.canvas.create_polygon(ax2 - 10, ay, ax2, 0+5, ax2, self.hh-5, fill="white", width=2)
+        self.canvas.bind("<1>", lambda event, type=self.type, anim=self.animationType: self.buttonPress(event, type, anim))
+        self.canvas.bind("<Enter>", lambda event, t=+1, anim=self.animationType: self.buttonMouse(event, t, anim))
+        self.canvas.bind("<Leave>", lambda event, t=-1, anim=self.animationType: self.buttonMouse(event, t, anim))
+        ax1, ax2 = self.ww / 2 + (len(self.text) / 2) * self.size, self.ww / 2 - (len(self.text) / 2) * self.size
+        self.arrow1 = self.canvas.create_polygon(ax1+10, self.hh/2, ax1, 0+5, ax1, self.hh-5, fill="white", width=2)
+        self.arrow2 = self.canvas.create_polygon(ax2-10, self.hh/2, ax2, 0+5, ax2, self.hh-5, fill="white", width=2)
         self.update()
+
+    def buttonMouse(self, event, enterOrLeave, anim):
+        caller = self.canvas
+        if anim == 0:
+            caller.colourA = clamp(-enterOrLeave, 0, 1)
+            caller.colourB = 0.25 if enterOrLeave == 1 else 1
+        if anim == 1:
+            caller.aimedSize = self.size + 5*clamp(enterOrLeave, 0, 1)
+            caller.colourT = (1 - self.size / caller.size) + 0.25
+
+    def buttonPress(self, event, type, anim):
+        caller = self.canvas
+        if anim == 0:
+            caller.size += 4
+            caller.arrowSpace = 1
+        if anim == 1:
+            caller.size -= 4
+        playSound('menuClicked.wav')
+        type(event)
 
     def update(self):
         if self.animationType == 0:
-            RGBcolourA = RGBToHex((self.canvas.colourA, self.canvas.colourA, self.canvas.colourA))
-            RGBcolourB = self.canvas.colourB
-            self.canvas.size = lerp(self.canvas.size, self.size, 0.2)
+            RGBcolourA = mergeColour(RGBToHex((75, 75, 75)), RGBToHex((255, 255, 255)), self.canvas.colourA)
+            RGBcolourB = mergeColour(colour["purple"], RGBToHex((255, 255, 255)), self.canvas.colourB)
             self.canvas.arrowSpace = lerp(self.canvas.arrowSpace, 0, 0.2)
+            ax1 = self.ww / 2 + (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
+            ax2 = self.ww / 2 - (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
             self.canvas.itemconfig(self.arrow1, outline=RGBcolourA)
             self.canvas.itemconfig(self.arrow2, outline=RGBcolourA)
             self.canvas.configure(bg=RGBcolourB)
-            ax1 = self.ww / 2 + (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
-            ax2 = self.ww / 2 - (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
-            ay = self.hh / 2
-            self.canvas.coords(self.arrow1, ax1 + 10, ay, ax1, 0 + 5, ax1, self.hh - 5)
-            self.canvas.coords(self.arrow2, ax2 - 10, ay, ax2, 0 + 5, ax2, self.hh - 5)
+            self.canvas.coords(self.arrow1, ax1+10, self.hh/2, ax1, 0+5, ax1, self.hh-5)
+            self.canvas.coords(self.arrow2, ax2-10, self.hh/2, ax2, 0+5, ax2, self.hh-5)
+            self.canvas.size = lerp(self.canvas.size, self.size, 0.2)
         if self.animationType == 1:
-            if self.canvas.changeSize == 1: aimedSize = self.size + 5
-            if self.canvas.changeSize == -1: aimedSize = self.size
-            if self.canvas.changeSize == 0: aimedSize = self.canvas.size
-            self.canvas.colourT = clamp(lerp(255, 0, 0.6 + (1 - self.size / self.canvas.size)), 0, 255)
-            RGBcolourT = RGBToHex((self.canvas.colourT, self.canvas.colourT, self.canvas.colourT))
-            self.canvas.size = lerp(self.canvas.size, aimedSize, 0.2)
+            RGBcolourT = mergeColour(RGBToHex((0, 0, 0)), RGBToHex((255, 255, 255)), self.canvas.colourT)
             self.canvas.itemconfig(self.canvas.label, fill=RGBcolourT)
-        self.canvas.style = (self.canvas.font, int(self.canvas.size))
+            self.canvas.size = lerp(self.canvas.size, self.canvas.aimedSize, 0.2)
+        self.canvas.style = (self.canvas.font, int(self.canvas.size), self.canvas.tag)
         self.canvas.itemconfig(self.canvas.label, font=self.canvas.style)
         self.canvas.after(self.refreshRate, self.update)
+
+class Popup:
+
+    def __init__(self, _frame, _text, _textOption1, _textOption2, _funcOption1, _funcOption2):
+        self.text, self.tO1, self.tO2 = _text, _textOption1, _textOption2
+        self.O1, self.O2 = _funcOption1, _funcOption2
+        assignFunction = lambda a: ((lambda event: self.cancelPopup(event)) if a == -1 \
+                                     else (lambda event: self.acceptPopup(event, a)))
+        self.O1, self.O2 = assignFunction(self.O1), assignFunction(self.O2)
+        self.top = Toplevel()
+        self.label = Label(self.top, text=self.text, font=("Trebuchet MS", 20), fg=colour["black"])
+        self.button1 = Button(self.top, self.tO1, self.O1, 10, _animationType=1)
+        self.button2 = Button(self.top, self.tO2, self.O2, 10, _animationType=1)
+        self.label.grid(row=0, column=0)
+        self.button1.canvas.grid(row=1, column=0)
+        self.button2.canvas.grid(row=2, column=0)
+        self.top.resizable(width=False, height=False)
+        self.top.transient(window)
+        self.top.grab_set()
+        center(self.top, window)
+
+    def cancelPopup(self, event):
+        self.top.destroy()
+        del self
+
+    def acceptPopup(self, event, func):
+        func(event)
+        self.cancelPopup(event)
+
 
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
 
-"""Fonction qui enroule un nombre dans un intervalle [0; a]"""
-def wrap(x, a):
-    return x % a
+"""Fonctions de boutons"""
+def restartPopup(event):
+    Popup(mainFrame, "Voulez-vous redémarrer?", "Oui", "Non", restart, -1)
+def quitPopup(event):
+    Popup(mainFrame, "Voulez-vous quitter?", "Oui", "Non", quit, -1)
+def restart(event):
+    print("restart")
+def quit(event):
+    print("quit")
+def cancel(event):
+    print("cancel")
+def info(event):
+    webbrowser.open(os.path.abspath("_instructions.pdf"))
 
-"""Fonction d'interpolation linéaire"""
-def lerp(a, b, x):
-    return a + (b - a) * x
-
-"""Fonction de clamp"""
-def clamp(x, a, b):
-    if x < a: return a
-    elif x > b: return b
-    else: return x
-    #return min(max(x, a), x, b)
-
-"""Fonction qui retourne si une valeur est entre 2 bornes"""
-def isBetween(x, a, b):
-    a = min(a, b)
-    b = max(a, b)
-    if x >= a and x <= b:
-        return True
-    else:
-        return False
-
-"""Fonction qui quantifie combien de cases il y a entre deux coordonnées"""
-def movementVector(i1, j1, i2, j2):
-    norm = sqrt((i1 - i2) ** 2 + (j1 - j2) ** 2)
-    return i1 - i2, j1 - j2, norm
-
-"""Fonction qui retourne le type de la case"""
-def case(i, j):
-    if (i % 2 == 0 and j % 2 == 0) \
-            or (i % 2 == 1 and j % 2 == 1):
-        return 1
-    else:
-        return 0
-
-"""Fonction qui convertit des couleurs HEX en RGB et vice versa"""
-def hexToRGB(value):
-    value = value.lstrip('#')
-    return tuple(int(value[i:i+2], 16) for i in (0, 2 ,4))
-def RGBToHex(rgb):
-    return '#%02x%02x%02x' % (rgb[0], rgb[1], rgb[2])
-
-"""Fonction qui mélange deux couleurs"""
-def mergeColour(c1, c2, x):
-    c1 = hexToRGB(c1)
-    c2 = hexToRGB(c2)
-    r, g, b = lerp(c1[0], c2[0], x), lerp(c1[1], c2[1], x), lerp(c1[2], c2[2], x)
-    return RGBToHex((r, g, b))
+"""Fonction qui centre un widget/fenêtre par rapport à l'écran"""
+def center(widget, root):
+    widget.update_idletasks()
+    _w, _h = widget.winfo_width(), widget.winfo_height()
+    _W, _H = widget.winfo_screenwidth(), widget.winfo_screenheight()
+    _X, _Y = 0, 0
+    if root != -1:
+        root.update_idletasks()
+        _W, _H = root.winfo_width(), root.winfo_height()
+        _X, _Y = root.winfo_rootx(), root.winfo_rooty()
+    widget.geometry("+%d+%d" % (_X + _W/2 - _w/2, _Y + _H/2 - _h/2))
 
 """Fonction qui définit la couleur d'une case"""
 def caseColour(i, j, col):
@@ -242,20 +300,10 @@ def resetCaseColour(withGreen=0):
             if withGreen == 1 and c[i][j] == colour["green"]: continue
             caseColour(i, j, -1)
 
-"""Fonction qui convertit un nombre en string à deux caractères"""
-def intToString(integer):
-    integer = int(integer)
-    if isBetween(integer, -9, 9):
-        return "0" + str(integer)
-    else:
-        return str(integer)
-
 """Fonction qui retourne si une case est vide (sans jetons) ou pas"""
 def empty(i, j):
-    if players[i][j] == -1:
-        return True
-    else:
-        return False
+    if players[i][j] == -1: return True
+    else: return False
 
 """Fonction qui convertit des coordonnées en index de tableau et vice verse"""
 def pixelToCell(x):
@@ -277,47 +325,6 @@ def playSound(sound):
     # PlaySound(sound, SND_FILENAME | SND_ASYNC)
     return None
 
-"""Fonctions qui manipulent les boutons"""
-def buttonMouse(event, enterOrLeave, anim):
-    caller = event.widget
-    if anim == 0:
-        if enterOrLeave == 1:
-            caller.colourA = 75
-            caller.colourB = mergeColour(colour["white"], "#FFFFFF", 0.25)
-        if enterOrLeave == -1:
-            caller.colourA = 255
-            caller.colourB = mergeColour(colour["white"], "#FFFFFF", 1)
-    if anim == 1:
-        caller.changeSize = enterOrLeave
-def buttonPress(event, type, anim):
-    caller = event.widget
-    if anim == 0:
-        caller.size += 4
-        caller.arrowSpace = 1
-    if anim == 1:
-        pass
-    playSound('menuClicked.wav')
-    type(event)
-def infoMouse(event, enterOrLeave):
-    caller = event.widget
-    if enterOrLeave == 1:
-        caller.itemconfig(ALL, fill=mergeColour(colour["white"], "#FFFFFF", 0.25))
-    if enterOrLeave == -1:
-        caller.itemconfig(ALL, fill=mergeColour(colour["white"], "#FFFFFF", 1))
-    infoIcon.itemconfig(infoI, fill="black")
-def infoPress(event):
-    return None
-
-"""Fonctions de boutons"""
-def annuler(event):
-    print("annuler")
-def redemarrer(event):
-    print("redemarrer")
-def quitter(event):
-    print("quitter")
-def infoPress(event):
-    return None
-
 """Fonction qui check si on un joueur peut en manger un autre"""
 def canMove():
     global player, players, onePlayerCanEat
@@ -333,7 +340,7 @@ def canMove():
                                     onePlayerCanEat[_player].append((pi, pj))
                             if c[pi][pj] != colour["green"]:
                                 if _player == player:
-                                    caseColour(pi, pj, colour["red"])
+                                    caseColour(pi, pj, colour["purple"])
                                 continue
                             else:
                                 resetCaseColour(withGreen=1)
@@ -401,8 +408,7 @@ def highlight(i, j, player, behaviour=1):
 
 """Fonction qui permet de manger un joueur"""
 def eat(i, j, player, playerMovement):
-    global scoreBoardSize, underScoreBoardSize, halfScoreBoardSize, \
-        scoreBoardBorder, halfScoreBoardBorder, playerCanvasSize
+    global playerCanvasSize
     # Définition du joueur mangé
     eatenPlayerX = i + int(playerMovement[0] / 2)
     eatenPlayerY = j + int(playerMovement[1] / 2)
@@ -420,23 +426,23 @@ def eat(i, j, player, playerMovement):
     # Mouvement du canevas dans le tableau du score
     playersPerRow, playersPerColumn = 5, 4
     hardCodedCoordinates = (460, 193)
-    scorePlayersSpacingX = (halfScoreBoardSize - \
-                            ((scoreBoardBorder * 2) + (playersPerRow * playerCanvasSize / 2))) \
+    scorePlayersSpacingX = (scoreBoard.halfScoreBoardSize - \
+                            ((scoreBoard.scoreBoardBorder * 2) + (playersPerRow * playerCanvasSize / 2))) \
                            / (playersPerRow + 1)
-    scorePlayersSpacingY = (underScoreBoardSize[1] - \
-                            ((scoreBoardBorder / 2) + (playersPerColumn * playerCanvasSize / 2))) \
+    scorePlayersSpacingY = (scoreBoard.underScoreBoardSize[1] - \
+                            ((scoreBoard.scoreBoardBorder / 2) + (playersPerColumn * playerCanvasSize / 2))) \
                            / (playersPerColumn + 1)
     if ePlayerType == 1:
         scorePositionX = hardCodedCoordinates[0] \
-                         + scoreBoardBorder + scorePlayersSpacingX \
+                         + scoreBoard.scoreBoardBorder + scorePlayersSpacingX \
                          + (playerCanvasSize / 2 + scorePlayersSpacingX) \
                          * ((int(scoreDisplay[ePlayerType].get()) - 1) % playersPerRow)
     if ePlayerType == -1:
-        scorePositionX = scoreBoardSize[0] / 2 + hardCodedCoordinates[0] \
-                         + 2 + scoreBoardBorder / 4 + scorePlayersSpacingX \
+        scorePositionX = scoreBoard.scoreBoardSize[0] / 2 + hardCodedCoordinates[0] \
+                         + 2 + scoreBoard.scoreBoardBorder / 4 + scorePlayersSpacingX \
                          + (playerCanvasSize / 2 + scorePlayersSpacingX) \
                          * ((int(scoreDisplay[ePlayerType].get()) - 1) % playersPerRow)
-    scorePositionY = hardCodedCoordinates[1] + scoreBoardBorder + scorePlayersSpacingY \
+    scorePositionY = hardCodedCoordinates[1] + scoreBoard.scoreBoardBorder + scorePlayersSpacingY \
                      + (playerCanvasSize / 2 + scorePlayersSpacingY) \
                      * ((int(scoreDisplay[ePlayerType].get()) - 1) // playersPerRow)
     scorePlayer[ePlayerType] \
@@ -528,83 +534,28 @@ turnText.grid(column=0, row=2)
 sideFrame = Frame(mainFrame)
 sideFrame.grid(column=1, row=1)
 
-scoreBoardSize, underScoreBoardSize = (300, 150), (300, 100)
-halfScoreBoardSize = scoreBoardSize[0] / 2
-scoreBoardBorder, halfScoreBoardBorder = 6, 6 / 2
-scoreBoard = Canvas(sideFrame, bg="black", \
-                    width=scoreBoardSize[0], \
-                    height=scoreBoardSize[1] + underScoreBoardSize[1])
-
-scoreBoard.create_rectangle(scoreBoardBorder, \
-                            scoreBoardBorder, \
-                            scoreBoardSize[0] / 2 - halfScoreBoardBorder, \
-                            scoreBoardSize[1] - halfScoreBoardBorder, \
-                            fill=colour["white"])
-scoreBoard.create_rectangle(halfScoreBoardSize + halfScoreBoardBorder / 2, \
-                            scoreBoardBorder, \
-                            scoreBoardSize[0] - halfScoreBoardBorder, \
-                            scoreBoardSize[1] - halfScoreBoardBorder, \
-                            fill=colour["black"])
-scoreBoard.create_rectangle(scoreBoardBorder, \
-                            scoreBoardSize[1] + halfScoreBoardBorder / 2, \
-                            halfScoreBoardSize - halfScoreBoardBorder, \
-                            scoreBoardSize[1] + underScoreBoardSize[1] - halfScoreBoardBorder, \
-                            fill=colour["black"])
-scoreBoard.create_rectangle(halfScoreBoardSize + halfScoreBoardBorder / 2, \
-                            scoreBoardSize[1] + halfScoreBoardBorder / 2, \
-                            underScoreBoardSize[0] - halfScoreBoardBorder, \
-                            scoreBoardSize[1] + underScoreBoardSize[1] - halfScoreBoardBorder, \
-                            fill=colour["white"])
-
-scoreBoard.grid(row=0, column=0)
-
-playerScoreSize = 60
-playerScoreOffset = (halfScoreBoardSize - playerScoreSize * 2) / 2 + playerScoreSize / 6
-blackPlayerScore = Label(scoreBoard, textvariable=scoreDisplay[-1], \
-                         font=("Trebuchet MS", playerScoreSize, "bold"), \
-                         fg=colour["blackPlayer"], bg=colour["white"])
-blackPlayerScore.place(x=playerScoreOffset, \
-                       y=(scoreBoardSize[1] - playerScoreSize) / 4)
-whitePlayerScore = Label(scoreBoard, textvariable=scoreDisplay[1], \
-                         font=("Trebuchet MS", playerScoreSize, "bold"), \
-                         fg=colour["whitePlayer"], bg=colour["black"])
-whitePlayerScore.place(x=halfScoreBoardSize + playerScoreOffset, \
-                       y=(scoreBoardSize[1] - playerScoreSize) / 4)
+scoreBoard = ScoreBoard(sideFrame)
+scoreBoard.canvas.grid(row=0, column=0)
 
 emptySpace1 = Canvas(sideFrame, width=400, height=55 / 2)
 emptySpace1.grid(row=1, column=0)
 
-cancelText = Button(annuler, "ANNULER", 15, sideFrame)
+cancelText = Button(sideFrame, "ANNULER", cancel, 15)
 cancelText.canvas.grid(row=2, column=0)
 
-restartText = Button(redemarrer, "REDEMARRER", 15, sideFrame)
+restartText = Button(sideFrame, "REDEMARRER", restartPopup, 15)
 restartText.canvas.grid(row=3, column=0)
 
-quitText = Button(quitter, "QUITTER", 15, sideFrame)
+quitText = Button(sideFrame, "QUITTER", quitPopup, 15)
 quitText.canvas.grid(row=4, column=0)
 
 emptySpace1 = Canvas(sideFrame, width=400, height=55 / 2)
 emptySpace1.grid(row=5, column=0)
 
-infoIconSize = 50
-infoIconHalfSize = infoIconSize / 2
-infoIcon = Canvas(window, width=infoIconSize, height=infoIconSize)
-#infoIcon.create_oval(7, 7, 42, 42, fill="white", outline="black", width=2)
-infoIcon.create_polygon(infoIconHalfSize, 5, \
-                        45, infoIconHalfSize, \
-                        infoIconHalfSize, 45, \
-                        5, infoIconHalfSize, \
-                        fill="white", outline="black", width=2)
-infoI = infoIcon.create_text(infoIconHalfSize, infoIconHalfSize, \
-                     text="i", font=("Courier New", 15, "bold"), \
-                     fill="black")
-infoIcon.place(relx=1, x=-10, y=10, anchor=NE)
-infoIcon.bind("<1>", infoPress)
-infoIcon.bind("<Enter>", lambda event, t=+1: infoMouse(event, t))
-infoIcon.bind("<Leave>", lambda event, t=-1: infoMouse(event, t))
+infoIcon = Button(window, "?", info, 20, _animationType=1, _font="Trebuchet MS", _tag="bold")
+infoIcon.canvas.place(relx=1, x=0, y=20, anchor=NE)
 
-title = Label(topFrame, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), \
-              height=1)
+title = Label(topFrame, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), height=1)
 title.pack()
 
 window.protocol("WM_DELETE_WINDOW", closeWindow)
@@ -648,4 +599,5 @@ for j in range(gSize):
 canMove()
 
 """Main"""
+center(window, -1)
 window.mainloop()
