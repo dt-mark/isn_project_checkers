@@ -36,14 +36,6 @@ def movementVector(i1, j1, i2, j2):
     norm = sqrt((i1 - i2) ** 2 + (j1 - j2) ** 2)
     return i1 - i2, j1 - j2, norm
 
-"""Fonction qui retourne le type de la case"""
-def case(i, j):
-    if (i % 2 == 0 and j % 2 == 0) \
-            or (i % 2 == 1 and j % 2 == 1):
-        return 1
-    else:
-        return 0
-
 """Fonction qui convertit des couleurs HEX en RGB et vice versa"""
 def hexToRGB(value):
     #https://stackoverflow.com/a/29643643
