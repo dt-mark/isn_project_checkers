@@ -51,6 +51,14 @@ colour = {
     "whitePlayer": "white",
     "blackPlayer": "black"
 }
+sound = {
+    "click":"_menuClicked.wav",
+    "eat":"_playerAte.wav",
+    "move":"_playerMoved.wav",
+    "super":"_playerSuper.wav",
+    "select":"_playerSelected.wav",
+    "deselect":"_playerDeselected.wav"
+}
 
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------CLASSES-------------------------------------------------------"""
@@ -118,10 +126,11 @@ class Player:
 
 class ScoreBoard:
 
-    def __init__(self, _frame):
-        self.scoreBoardSize, self.underScoreBoardSize = (300, 150), (300, 100)
+    def __init__(self, _frame, _size, _underSize, _border):
+        self.scoreBoardSize, self.underScoreBoardSize = _size, _underSize
         self.halfScoreBoardSize = self.scoreBoardSize[0] / 2
-        self.scoreBoardBorder, self.halfScoreBoardBorder = 6, 6 / 2
+        self.scoreBoardBorder = _border
+        self.halfScoreBoardBorder = self.scoreBoardBorder / 2
         self.canvas = Canvas(_frame, bg="black", \
                              width=self.scoreBoardSize[0], \
                              height=self.scoreBoardSize[1] + self.underScoreBoardSize[1])
@@ -169,7 +178,7 @@ class Button:
         self.canvas = Canvas(_frame, width=self.ww, height=self.hh-3)
         self.canvas.label = self.canvas.create_text(self.ww/2, self.hh/2, text=self.text)
         self.canvas.arrowSpace = 0
-        self.canvas.colourA, self.canvas.colourB, self.canvas.colourT = 1, 1, 0.5
+        self.canvas.colourA, self.canvas.colourT = 1, 0.5
         self.canvas.font, self.canvas.tag = _font, _tag
         self.canvas.size, self.canvas.aimedSize = self.size, self.size
         self.canvas.style = (self.canvas.font, self.canvas.size, self.canvas.tag)
@@ -186,7 +195,6 @@ class Button:
         caller = self.canvas
         if anim == 0:
             caller.colourA = clamp(-enterOrLeave, 0, 1)
-            caller.colourB = 0.25 if enterOrLeave == 1 else 1
         if anim == 1:
             caller.aimedSize = self.size + 5*clamp(enterOrLeave, 0, 1)
             caller.colourT = (1 - self.size / caller.size) + 0.25
@@ -198,13 +206,13 @@ class Button:
             caller.arrowSpace = 1
         if anim == 1:
             caller.size -= 4
-        playSound('menuClicked.wav')
+        playSound(sound["click"])
         type(event)
 
     def update(self):
         if self.animationType == 0:
             RGBcolourA = mergeColour(RGBToHex((75, 75, 75)), RGBToHex((255, 255, 255)), self.canvas.colourA)
-            RGBcolourB = mergeColour(colour["purple"], RGBToHex((255, 255, 255)), self.canvas.colourB)
+            RGBcolourB = mergeColour(RGBToHex((215, 215, 215)), RGBToHex((255, 255, 255)), self.canvas.colourA)
             self.canvas.arrowSpace = lerp(self.canvas.arrowSpace, 0, 0.2)
             ax1 = self.ww / 2 + (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
             ax2 = self.ww / 2 - (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
@@ -281,6 +289,14 @@ def center(widget, root):
         _X, _Y = root.winfo_rootx(), root.winfo_rooty()
     widget.geometry("+%d+%d" % (_X + _W/2 - _w/2, _Y + _H/2 - _h/2))
 
+"""Fonction qui retourne le type de la case"""
+def case(i, j):
+    if (i % 2 == 0 and j % 2 == 0) \
+        or (i % 2 == 1 and j % 2 == 1):
+        return 0
+    else:
+        return 1
+
 """Fonction qui définit la couleur d'une case"""
 def caseColour(i, j, col):
     global player, onePlayerCanEat
@@ -340,7 +356,7 @@ def canMove():
                                     onePlayerCanEat[_player].append((pi, pj))
                             if c[pi][pj] != colour["green"]:
                                 if _player == player:
-                                    caseColour(pi, pj, colour["purple"])
+                                    caseColour(pi, pj, colour["red"])
                                 continue
                             else:
                                 resetCaseColour(withGreen=1)
@@ -470,7 +486,7 @@ def click(event, i, j):
             selectedPlayer = players[i][j]
             player = selectedPlayer.type
             highlight(i, j, player)
-            playSound('playerSelected.wav')
+            playSound(sound["select"])
     # Si on est sur une case normale,
     else:
         # Si elle est en surbrillance,
@@ -483,11 +499,11 @@ def click(event, i, j):
             player = selectedPlayer.type
             selectedPlayer = -1
             highlightStuck = False
-            playSound('playerMoved.wav')
+            playSound(sound["move"])
             # Si on est en train de manger un joueur,
             if playerMovement[2] > sqrt(2):
                 eat(i, j, player, playerMovement)
-                playSound('playerAte.wav')
+                playSound(sound["eat"])
             # On change de joueur
             if (highlightStuck == False):
                 player = -player
@@ -505,12 +521,12 @@ def click(event, i, j):
                                                     fill=players[i][j].col1, \
                                                     outline=players[i][j].col2, \
                                                     width=4)
-            playSound('playerSuper.wav')
+            playSound(sound["super"])
         # Si elle est vierge et qu'on est pas coincés dans un combo,
         elif not highlightStuck:
             resetCaseColour()
             selectedPlayer = -1
-            playSound('playerDeselected.wav')
+            playSound(sound["deselect"])
 
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------PROGRAMME------------------------------------------------------"""
@@ -534,7 +550,7 @@ turnText.grid(column=0, row=2)
 sideFrame = Frame(mainFrame)
 sideFrame.grid(column=1, row=1)
 
-scoreBoard = ScoreBoard(sideFrame)
+scoreBoard = ScoreBoard(sideFrame, (300, 150), (300, 100), 6)
 scoreBoard.canvas.grid(row=0, column=0)
 
 emptySpace1 = Canvas(sideFrame, width=400, height=55 / 2)
@@ -552,7 +568,7 @@ quitText.canvas.grid(row=4, column=0)
 emptySpace1 = Canvas(sideFrame, width=400, height=55 / 2)
 emptySpace1.grid(row=5, column=0)
 
-infoIcon = Button(window, "?", info, 20, _animationType=1, _font="Trebuchet MS", _tag="bold")
+infoIcon = Button(window, "?", info, 20, _animationType=1, _tag="bold")
 infoIcon.canvas.place(relx=1, x=0, y=20, anchor=NE)
 
 title = Label(topFrame, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), height=1)
