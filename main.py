@@ -48,8 +48,8 @@ colour = {
     "blue": "#%02X%02X%02X" % (50, 125, 175),
     "gold": "#%02X%02X%02X" % (255, 160, 60),
     "purple": "#%02X%02X%02X" % (255, 130, 255),
-    "whitePlayer": "white",
-    "blackPlayer": "black"
+    "whitePlayer": "#%02X%02X%02X" % (255, 255, 255),
+    "blackPlayer": "#%02X%02X%02X" % (0, 0, 0)
 }
 sound = {
     "click":"_menuClicked.wav",
@@ -576,7 +576,7 @@ def click(event, i, j):
 mainFrame = Frame(window)
 mainFrame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
 sideFrame1 = Frame(mainFrame)
-sideFrame1.grid(row=2, column=0)
+sideFrame1.grid(row=1, column=0)
 sideFrame2 = Frame(mainFrame)
 sideFrame2.grid(row=1, column=1)
 
