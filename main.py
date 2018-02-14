@@ -63,11 +63,9 @@ sound = {
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------CLASSES-------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
-
 playerObjects = []
 buttonObjects = []
-infoObjects = []
-
+"""----------------------------------------------------PLAYER--------------------------------------------------------"""
 class Player:
 
     def __init__(self, _x, _y, _type, _score=0):
@@ -76,8 +74,10 @@ class Player:
         parent = board if self.score == 0 else mainFrame
         if self.score == 0:
             self.x, self.y = cellToPixel(_x), cellToPixel(_y)
+            self.i, self.j = _x, _y
         else:
             self.x, self.y = _x, _y
+            self.i, self.j = pixelToCell(_x), pixelToCell(_y)
         self.xTo, self.yTo, self.sTo = self.x, self.y, playerCanvasSize
         self.type = _type
         self.super = False
@@ -86,14 +86,14 @@ class Player:
         self.col2 = colour["whitePlayer"] if _type == +1 else colour["blackPlayer"]
         self.canvas = Canvas(parent, width=playerCanvasSize, \
                              height=playerCanvasSize, \
-                             bg=c[i][j], bd=0, highlightthickness=0)
+                             bg=c[self.i][self.j], bd=0, highlightthickness=0)
         # self.canvasItem = self.canvas.create_oval(2, 2, playerCanvasSize-2, \
         #                              playerCanvasSize-2, fill=self.col1, width=0)
         self.canvasItem = self.canvas.create_rectangle(0, 0, playerCanvasSize, \
                                                        playerCanvasSize, fill=self.col1, outline=self.col2, \
                                                        width=8)
         self.canvas.place(x=self.x, y=self.y)
-        self.canvas.bind("<1>", lambda event, x=i, y=j: click(event, x, y))
+        self.canvas.bind("<1>", lambda event, x=_x, y=_y: click(event, x, y))
         self.update()
 
     def changePosition(self, _x, _y):
@@ -124,6 +124,42 @@ class Player:
         self.canvas.itemconfigure(self.canvasItem, fill=self.col1, outline=self.col2)
         self.canvas.after(self.refreshRate, self.update)
 
+"""-----------------------------------------------------BOARD--------------------------------------------------------"""
+class Board:
+
+    def __init__(self, _frame, _gSize, _bSize):
+        for j in range(_gSize):
+            for i in range(_gSize):
+                # Création des boutons de base
+                b[i][j] = Canvas(_frame, width=_bSize, height=_bSize, \
+                                 bd=0, highlightthickness=0)
+                b[i][j].grid(column=i, row=j)
+                # Si on est sur une case noire
+                if case(i, j):
+                    # Créer la couleur marron
+                    c[i][j] = colour["black"]
+                    # Placer des jetons
+                    if int(scoreDisplay[-1].get()) > 0 and j >= 0:
+                        players[i][j] = Player(i, j, -1)
+                        scoreDisplay[-1].set(intToString(int(scoreDisplay[-1].get()) - 1))
+                    elif int(scoreDisplay[1].get()) > 0 and j >= 6:
+                        players[i][j] = Player(i, j, 1)
+                        scoreDisplay[1].set(intToString(int(scoreDisplay[1].get()) - 1))
+                    else:
+                        players[i][j] = -1
+                # Si on est sur une case blanche
+                else:
+                    # Créer la couleur crème
+                    c[i][j] = colour["white"]
+                    # Le reste de la grille est égal à -1
+                    players[i][j] = -1
+                # Fonction des boutons
+                b[i][j].bind("<1>", lambda event, x=i, y=j: click(event, x, y))
+                # Couleur des boutons
+                b[i][j].config(background=c[i][j])
+        canMove()
+
+"""--------------------------------------------------SCORE-BOARD-----------------------------------------------------"""
 class ScoreBoard:
 
     def __init__(self, _frame, _size, _underSize, _border):
@@ -167,6 +203,7 @@ class ScoreBoard:
         self.whitePlayerScore.place(x=self.halfScoreBoardSize + self.playerScoreOffset, \
                                     y=(self.scoreBoardSize[1] - self.playerScoreSize) / 4)
 
+"""----------------------------------------------------BUTTON--------------------------------------------------------"""
 class Button:
 
     def __init__(self, _frame, _text, _type, _size, _animationType=0, _font="Trebuchet MS", _tag=""):
@@ -230,6 +267,7 @@ class Button:
         self.canvas.itemconfig(self.canvas.label, font=self.canvas.style)
         self.canvas.after(self.refreshRate, self.update)
 
+"""-----------------------------------------------------POPUP--------------------------------------------------------"""
 class Popup:
 
     def __init__(self, _frame, _text, _textOption1, _textOption2, _funcOption1, _funcOption2):
@@ -263,6 +301,7 @@ class Popup:
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
 
+"""--------------------------------------------------SECONDAIRES-----------------------------------------------------"""
 """Fonctions de boutons"""
 def restartPopup(event):
     Popup(mainFrame, "Voulez-vous redémarrer?", "Oui", "Non", restart, -1)
@@ -288,6 +327,11 @@ def center(widget, root):
         _W, _H = root.winfo_width(), root.winfo_height()
         _X, _Y = root.winfo_rootx(), root.winfo_rooty()
     widget.geometry("+%d+%d" % (_X + _W/2 - _w/2, _Y + _H/2 - _h/2))
+
+"""Fonction qui retourne si une case est vide (sans jetons) ou pas"""
+def empty(i, j):
+    if players[i][j] == -1: return True
+    else: return False
 
 """Fonction qui retourne le type de la case"""
 def case(i, j):
@@ -316,12 +360,7 @@ def resetCaseColour(withGreen=0):
             if withGreen == 1 and c[i][j] == colour["green"]: continue
             caseColour(i, j, -1)
 
-"""Fonction qui retourne si une case est vide (sans jetons) ou pas"""
-def empty(i, j):
-    if players[i][j] == -1: return True
-    else: return False
-
-"""Fonction qui convertit des coordonnées en index de tableau et vice verse"""
+"""Fonction qui convertit des coordonnées d'index de tableau en pixels et vice verse"""
 def pixelToCell(x):
     return (x // bSize)
 def cellToPixel(x):
@@ -332,14 +371,14 @@ def boardToFrame(a, xOrY):
     if xOrY == "x": return a + 4
     if xOrY == "y": return a + 25 * 2 + 4
 
+"""Fonction qui éxécute un effet sonore"""
+def playSound(sound):
+    #PlaySound(sound, SND_FILENAME | SND_ASYNC)
+    return
+
 """Fonction appelée lorsqu'on ferme le jeu"""
 def closeWindow():
     window.destroy()
-
-"""Fonction qui éxécute un effet sonore"""
-def playSound(sound):
-    # PlaySound(sound, SND_FILENAME | SND_ASYNC)
-    return None
 
 """Fonction qui check si on un joueur peut en manger un autre"""
 def canMove():
@@ -370,6 +409,7 @@ def canMove():
                 continue
     window.after(15, canMove)
 
+"""--------------------------------------------------PRINCIPALES-----------------------------------------------------"""
 """Fonction qui check où on peut aller"""
 def highlight(i, j, player, behaviour=1):
     global selectedPlayer, highlightStuck, onePlayerCanEat
@@ -532,88 +572,52 @@ def click(event, i, j):
 """---------------------------------------------------PROGRAMME------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
 
-"""Arrangement des widgets autour du jeu"""
-window.configure(bg="white")
-
+"""-----------------------------------------------FRAMES-PRINCIPALES-------------------------------------------------"""
 mainFrame = Frame(window)
 mainFrame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
+sideFrame1 = Frame(mainFrame)
+sideFrame1.grid(column=0, row=1)
+sideFrame2 = Frame(mainFrame)
+sideFrame2.grid(column=1, row=1)
 
-topFrame = Frame(mainFrame)
-topFrame.grid(column=0, row=0)
-
-board = Frame(mainFrame, borderwidth=5, bg="black")
-board.grid(column=0, row=1)
-
-turnText = Label(mainFrame, textvariable=turn, font=("Trebuchet MS", 15))
-turnText.grid(column=0, row=2)
-
-sideFrame = Frame(mainFrame)
-sideFrame.grid(column=1, row=1)
-
-scoreBoard = ScoreBoard(sideFrame, (300, 150), (300, 100), 6)
-scoreBoard.canvas.grid(row=0, column=0)
-
-emptySpace1 = Canvas(sideFrame, width=400, height=55 / 2)
-emptySpace1.grid(row=1, column=0)
-
-cancelText = Button(sideFrame, "ANNULER", cancel, 15)
-cancelText.canvas.grid(row=2, column=0)
-
-restartText = Button(sideFrame, "REDEMARRER", restartPopup, 15)
-restartText.canvas.grid(row=3, column=0)
-
-quitText = Button(sideFrame, "QUITTER", quitPopup, 15)
-quitText.canvas.grid(row=4, column=0)
-
-emptySpace1 = Canvas(sideFrame, width=400, height=55 / 2)
-emptySpace1.grid(row=5, column=0)
-
+"""-------------------------------------------------WIDGETS-WINDOW---------------------------------------------------"""
 infoIcon = Button(window, "?", info, 20, _animationType=1, _tag="bold")
 infoIcon.canvas.place(relx=1, x=0, y=20, anchor=NE)
 
+"""-------------------------------------------------WIDGETS-GAUCHE---------------------------------------------------"""
+topFrame = Frame(sideFrame1)
+topFrame.grid(column=0, row=0)
 title = Label(topFrame, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), height=1)
 title.pack()
 
+board = Frame(sideFrame1, borderwidth=5, bg="black")
+board.grid(column=0, row=1)
+Board(board, gSize, bSize)
+
+turnText = Label(sideFrame1, textvariable=turn, font=("Trebuchet MS", 15))
+turnText.grid(column=0, row=2)
+
+"""-------------------------------------------------WIDGETS-DROITE---------------------------------------------------"""
+scoreBoard = ScoreBoard(sideFrame2, (300, 150), (300, 100), 6)
+scoreBoard.canvas.grid(row=0, column=0)
+
+emptySpace1 = Canvas(sideFrame2, width=400, height=55 / 2)
+emptySpace1.grid(row=1, column=0)
+
+cancelText = Button(sideFrame2, "ANNULER", cancel, 15)
+cancelText.canvas.grid(row=2, column=0)
+
+restartText = Button(sideFrame2, "REDEMARRER", restartPopup, 15)
+restartText.canvas.grid(row=3, column=0)
+
+quitText = Button(sideFrame2, "QUITTER", quitPopup, 15)
+quitText.canvas.grid(row=4, column=0)
+
+emptySpace1 = Canvas(sideFrame2, width=400, height=55 / 2)
+emptySpace1.grid(row=5, column=0)
+
+"""---------------------------------------------------EXECUTION------------------------------------------------------"""
+window.configure(bg="white")
 window.protocol("WM_DELETE_WINDOW", closeWindow)
-
-"""Arrangement de la grille"""
-for j in range(gSize):
-    for i in range(gSize):
-
-        # Création des boutons de base
-        b[i][j] = Canvas(board, width=bSize, height=bSize, \
-                         bd=0, highlightthickness=0)
-        b[i][j].grid(column=i, row=j)
-
-        # Si on est sur une case noire
-        if case(i, j):
-            # Créer la couleur marron
-            c[i][j] = colour["black"]
-
-            # Placer des jetons
-            if int(scoreDisplay[-1].get()) > 0 and j >= 0:
-                players[i][j] = Player(i, j, -1)
-                scoreDisplay[-1].set(intToString(int(scoreDisplay[-1].get()) - 1))
-            elif int(scoreDisplay[1].get()) > 0 and j >= 6:
-                players[i][j] = Player(i, j, 1)
-                scoreDisplay[1].set(intToString(int(scoreDisplay[1].get()) - 1))
-            else:
-                players[i][j] = -1
-
-        # Si on est sur une case blanche
-        else:
-            # Créer la couleur crème
-            c[i][j] = colour["white"]
-            # Le reste de la grille est égal à -1
-            players[i][j] = -1
-
-        # Fonction des boutons
-        b[i][j].bind("<1>", lambda event, x=i, y=j: click(event, x, y))
-        # Couleur des boutons
-        b[i][j].config(background=c[i][j])
-
-canMove()
-
-"""Main"""
 center(window, -1)
 window.mainloop()
