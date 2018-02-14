@@ -133,7 +133,7 @@ class Board:
                 # Création des boutons de base
                 b[i][j] = Canvas(_frame, width=_bSize, height=_bSize, \
                                  bd=0, highlightthickness=0)
-                b[i][j].grid(column=i, row=j)
+                b[i][j].grid(row=j, column=i)
                 # Si on est sur une case noire
                 if case(i, j):
                     # Créer la couleur marron
@@ -576,9 +576,9 @@ def click(event, i, j):
 mainFrame = Frame(window)
 mainFrame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
 sideFrame1 = Frame(mainFrame)
-sideFrame1.grid(column=0, row=1)
+sideFrame1.grid(row=2, column=0)
 sideFrame2 = Frame(mainFrame)
-sideFrame2.grid(column=1, row=1)
+sideFrame2.grid(row=1, column=1)
 
 """-------------------------------------------------WIDGETS-WINDOW---------------------------------------------------"""
 infoIcon = Button(window, "?", info, 20, _animationType=1, _tag="bold")
@@ -586,16 +586,16 @@ infoIcon.canvas.place(relx=1, x=0, y=20, anchor=NE)
 
 """-------------------------------------------------WIDGETS-GAUCHE---------------------------------------------------"""
 topFrame = Frame(sideFrame1)
-topFrame.grid(column=0, row=0)
+topFrame.grid(row=0, column=0)
 title = Label(topFrame, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), height=1)
 title.pack()
 
 board = Frame(sideFrame1, borderwidth=5, bg="black")
-board.grid(column=0, row=1)
+board.grid(row=1, column=0)
 Board(board, gSize, bSize)
 
 turnText = Label(sideFrame1, textvariable=turn, font=("Trebuchet MS", 15))
-turnText.grid(column=0, row=2)
+turnText.grid(row=2, column=0)
 
 """-------------------------------------------------WIDGETS-DROITE---------------------------------------------------"""
 scoreBoard = ScoreBoard(sideFrame2, (300, 150), (300, 100), 6)
