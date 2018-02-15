@@ -13,6 +13,7 @@ from basicFunctions import *
 
 from math import *
 from winsound import *
+from threading import *
 import webbrowser
 
 """------------------------------------------------------------------------------------------------------------------"""
@@ -33,7 +34,7 @@ players, player = [[-1 for i in range(gSize + 1)] for j in range(gSize + 1)], 1
 scoreDisplay = {-1: StringVar(), 1: StringVar()}
 scoreDisplay[-1].set(str(gSize * 2))
 scoreDisplay[+1].set(str(gSize * 2))
-scorePlayer = {-1: [0 for i in range(gSize * 2)], 1: [0 for i in range(gSize * 2)]}
+scorePlayer = {-1: [0 for i in range(gSize * 2 +1)], 1: [0 for i in range(gSize * 2 +1)]}
 turn = StringVar()
 turn.set("c'est au joueur {0} de jouer".format("BLANC" if player == -1 else "NOIR"))
 
@@ -296,6 +297,19 @@ class Popup:
         func(event)
         self.cancelPopup(event)
 
+"""-----------------------------------------------------SONS---------------------------------------------------------"""
+class Sound(Thread):
+
+   def __init__(self, _name):
+       Thread.__init__(self)
+       self.name = _name
+       PlaySound(self.name, SND_FILENAME | SND_ASYNC)
+
+   def run(self):
+       # Get lock to synchronize threads
+       threadLock.acquire()
+       # Free lock to release next thread
+       threadLock.release()
 
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
@@ -373,8 +387,8 @@ def boardToFrame(a, xOrY):
 
 """Fonction qui éxécute un effet sonore"""
 def playSound(sound):
+    Sound(sound)
     #PlaySound(sound, SND_FILENAME | SND_ASYNC)
-    return
 
 """Fonction appelée lorsqu'on ferme le jeu"""
 def closeWindow():
@@ -543,7 +557,7 @@ def click(event, i, j):
             # Si on est en train de manger un joueur,
             if playerMovement[2] > sqrt(2):
                 eat(i, j, player, playerMovement)
-                playSound(sound["eat"])
+                #playSound(sound["eat"])
             # On change de joueur
             if (highlightStuck == False):
                 player = -player
@@ -561,7 +575,7 @@ def click(event, i, j):
                                                     fill=players[i][j].col1, \
                                                     outline=players[i][j].col2, \
                                                     width=4)
-            playSound(sound["super"])
+            #playSound(sound["super"])
         # Si elle est vierge et qu'on est pas coincés dans un combo,
         elif not highlightStuck:
             resetCaseColour()
@@ -601,7 +615,7 @@ turnText.grid(row=2, column=0)
 scoreBoard = ScoreBoard(sideFrame2, (300, 150), (300, 100), 6)
 scoreBoard.canvas.grid(row=0, column=0)
 
-emptySpace1 = Canvas(sideFrame2, width=400, height=55 / 2)
+emptySpace1 = Canvas(sideFrame2, width=400, height=50/2)
 emptySpace1.grid(row=1, column=0)
 
 cancelText = Button(sideFrame2, "ANNULER", cancel, 15)
@@ -613,8 +627,10 @@ restartText.canvas.grid(row=3, column=0)
 quitText = Button(sideFrame2, "QUITTER", quitPopup, 15)
 quitText.canvas.grid(row=4, column=0)
 
-emptySpace1 = Canvas(sideFrame2, width=400, height=55 / 2)
-emptySpace1.grid(row=5, column=0)
+emptySpace2 = Canvas(sideFrame2, width=400, height=50/2)
+emptySpace2.grid(row=5, column=0)
+
+threadLock = Lock()
 
 """---------------------------------------------------EXECUTION------------------------------------------------------"""
 window.configure(bg="white")
