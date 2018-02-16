@@ -585,7 +585,7 @@ infoIcon.canvas.place(relx=1, x=0, y=20, anchor=NE)
 """------------------------------------------------------------------------------------------------------------------"""
 threadLock = Lock()
 
-gameLayout(window)
+menuLayout(window)
 
 window.title("PROJET d'ISN")
 window.configure(bg="white")
