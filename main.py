@@ -395,29 +395,29 @@ def eat(i, j, player, playerMovement):
     scoreDisplay[ePlayerType].set(intToString(int(scoreDisplay[ePlayerType].get()) + 1))
     # Création d'un mini canevas pour l'animation
     scorePlayer[ePlayerType][int(scoreDisplay[ePlayerType].get())] \
-    = Player(mainFrame, boardToFrame(cellToPixel(eatenPlayerX), "x"), \
+    = Player(gameFrame, boardToFrame(cellToPixel(eatenPlayerX), "x"), \
              boardToFrame(cellToPixel(eatenPlayerY), "y"), \
              ePlayerType, _score=1)
     # Mouvement du canevas dans le tableau du score
     playersPerRow, playersPerColumn = 5, 4
     hardCodedCoordinates = (462, 190)
-    scorePlayersSpacingX = (scoreBoard.halfScoreBoardSize - \
-                            ((scoreBoard.scoreBoardBorder * 2) + (playersPerRow * playerCanvasSize / 2))) \
+    scorePlayersSpacingX = (gameScoreBoard.halfScoreBoardSize - \
+                            ((gameScoreBoard.scoreBoardBorder * 2) + (playersPerRow * playerCanvasSize / 2))) \
                            / (playersPerRow + 1)
-    scorePlayersSpacingY = (scoreBoard.underScoreBoardSize[1] - \
-                            ((scoreBoard.scoreBoardBorder / 2) + (playersPerColumn * playerCanvasSize / 2))) \
+    scorePlayersSpacingY = (gameScoreBoard.underScoreBoardSize[1] - \
+                            ((gameScoreBoard.scoreBoardBorder / 2) + (playersPerColumn * playerCanvasSize / 2))) \
                            / (playersPerColumn + 1)
     if ePlayerType == 1:
         scorePositionX = hardCodedCoordinates[0] \
-                         + scoreBoard.scoreBoardBorder + scorePlayersSpacingX \
+                         + gameScoreBoard.scoreBoardBorder + scorePlayersSpacingX \
                          + (playerCanvasSize / 2 + scorePlayersSpacingX) \
                          * ((int(scoreDisplay[ePlayerType].get()) - 1) % playersPerRow)
     if ePlayerType == -1:
-        scorePositionX = scoreBoard.scoreBoardSize[0] / 2 + hardCodedCoordinates[0] \
-                         + 2 + scoreBoard.scoreBoardBorder / 4 + scorePlayersSpacingX \
+        scorePositionX = gameScoreBoard.scoreBoardSize[0] / 2 + hardCodedCoordinates[0] \
+                         + 2 + gameScoreBoard.scoreBoardBorder / 4 + scorePlayersSpacingX \
                          + (playerCanvasSize / 2 + scorePlayersSpacingX) \
                          * ((int(scoreDisplay[ePlayerType].get()) - 1) % playersPerRow)
-    scorePositionY = hardCodedCoordinates[1] + scoreBoard.scoreBoardBorder + scorePlayersSpacingY \
+    scorePositionY = hardCodedCoordinates[1] + gameScoreBoard.scoreBoardBorder + scorePlayersSpacingY \
                      + (playerCanvasSize / 2 + scorePlayersSpacingY) \
                      * ((int(scoreDisplay[ePlayerType].get()) - 1) // playersPerRow)
     scorePlayer[ePlayerType][int(scoreDisplay[ePlayerType].get())] \
@@ -498,7 +498,7 @@ def quitPopup(event):
 def restart(event):
     print("restart")
 def quit(event):
-    layoutDelete(mainFrame)
+    layoutDelete(gameFrame)
     menuLayout(window)
 def cancel(event):
     print("cancel")
@@ -507,13 +507,13 @@ def info(event):
 
 """Changements de layout"""
 def gameLayout(window):
-    global mainFrame
-    mainFrame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
+    global gameFrame
+    gameFrame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
     layoutDelete(menuFrame)
 def menuLayout(window):
     global menuFrame
     menuFrame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
-    layoutDelete(mainFrame)
+    layoutDelete(gameFrame)
 def layoutDelete(frame):
     frame.pack_forget()
 
@@ -521,36 +521,42 @@ def layoutDelete(frame):
 """----------------------------------------------------LAYOUT--------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
 
+globalWidth, globalHeight = 800, 500
+
+"""Main Frames"""
+gameFrame = Frame(window, width=globalWidth, height=globalHeight)
+gameFrame.grid_propagate(False)
+menuFrame = Frame(window, width=globalWidth, height=globalHeight)
+menuFrame.grid_propagate(False)
+
 """Game Widgets"""
-mainFrame = Frame(window)
-sideFrame1 = Frame(mainFrame)
-sideFrame1.grid(row=1, column=0)
-sideFrame2 = Frame(mainFrame)
-sideFrame2.grid(row=1, column=1)
-title = Label(sideFrame1, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), height=1)
-title.grid(row=0, column=0)
-board = Frame(sideFrame1, borderwidth=5, bg="black")
-board.grid(row=1, column=0)
-Board(board, gSize, bSize)
-turnText = Label(sideFrame1, textvariable=turn, font=("Trebuchet MS", 15))
-turnText.grid(row=2, column=0)
-scoreBoard = ScoreBoard(sideFrame2, (300, 150), (300, 100), 6)
-scoreBoard.canvas.grid(row=0, column=0)
-emptySpace1 = Canvas(sideFrame2, width=400, height=50 / 2)
-emptySpace1.grid(row=1, column=0)
-cancelText = Button(sideFrame2, "ANNULER", cancel, 15)
-cancelText.canvas.grid(row=2, column=0)
-restartText = Button(sideFrame2, "REDEMARRER", restartPopup, 15)
-restartText.canvas.grid(row=3, column=0)
-quitText = Button(sideFrame2, "QUITTER", quitPopup, 15)
-quitText.canvas.grid(row=4, column=0)
-emptySpace2 = Canvas(sideFrame2, width=400, height=50 / 2)
-emptySpace2.grid(row=5, column=0)
+gameSideFrame1 = Frame(gameFrame)
+gameSideFrame1.grid(row=1, column=0, sticky="E")
+gameSideFrame2 = Frame(gameFrame)
+gameSideFrame2.grid(row=1, column=1, sticky="W")
+gameTitle = Label(gameSideFrame1, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), height=1)
+gameTitle.grid(row=0, column=0)
+gameBoard = Frame(gameSideFrame1, borderwidth=5, bg="black")
+gameBoard.grid(row=1, column=0)
+Board(gameBoard, gSize, bSize)
+gameTurnText = Label(gameSideFrame1, textvariable=turn, font=("Trebuchet MS", 15))
+gameTurnText.grid(row=2, column=0)
+gameScoreBoard = ScoreBoard(gameSideFrame2, (300, 150), (300, 100), 6)
+gameScoreBoard.canvas.grid(row=0, column=0)
+gameEmptySpace1 = Canvas(gameSideFrame2, width=400, height=50 / 2)
+gameEmptySpace1.grid(row=1, column=0)
+gameCancelText = Button(gameSideFrame2, "ANNULER", cancel, 15)
+gameCancelText.canvas.grid(row=2, column=0)
+gameRestartText = Button(gameSideFrame2, "REDEMARRER", restartPopup, 15)
+gameRestartText.canvas.grid(row=3, column=0)
+gameQuitText = Button(gameSideFrame2, "QUITTER", quitPopup, 15)
+gameQuitText.canvas.grid(row=4, column=0)
+gameEmptySpace2 = Canvas(gameSideFrame2, width=400, height=50 / 2)
+gameEmptySpace2.grid(row=5, column=0)
 
 """Menu Widgets"""
-menuFrame = Frame(window)
-playButton = Button(menuFrame, "JOUER", lambda w=window: gameLayout(window), 50, _animationType=1)
-playButton.canvas.pack()
+menuPlayButton = Button(menuFrame, "JOUER", lambda w=window: gameLayout(window), 50, _animationType=1)
+menuPlayButton.canvas.grid(row=0, column=0, columnspan=2)
 
 """Help Icon (displayed at all times)"""
 infoIcon = Button(window, "?", info, 20, _animationType=1, _tag="bold")
