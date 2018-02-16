@@ -491,17 +491,23 @@ def click(event, i, j):
     victory()
 
 """Fonction des boutons"""
-def restartPopup(event):
-    Popup("Voulez-vous redémarrer?", "Oui", "Non", restart, -1)
-def quitPopup(event):
-    Popup("Voulez-vous quitter?", "Oui", "Non", quit, -1)
-def restart(event):
-    print("restart")
-def quit(event):
+def gameRestartPopup(event):
+    Popup("Voulez-vous redémarrer?", "Oui", "Non", gameRestart, -1)
+def gameQuitPopup(event):
+    Popup("Voulez-vous quitter?", "Oui", "Non", gameQuit, -1)
+def gameRestart(event):
+    print("gameRestart")
+def gameQuit(event):
     layoutDelete(gameFrame)
     menuLayout(window)
-def cancel(event):
-    print("cancel")
+def gameCancel(event):
+    print("gameCancel")
+def menuOptions(event):
+    print("menuOptions")
+def menuStats(event):
+    print("menuStats")
+def menuQuit(event):
+    print("menuQuit")
 def info(event):
     webbrowser.open(os.path.abspath("_instructions.pdf"))
 
@@ -545,18 +551,30 @@ gameScoreBoard = ScoreBoard(gameSideFrame2, (300, 150), (300, 100), 6)
 gameScoreBoard.canvas.grid(row=0, column=0)
 gameEmptySpace1 = Canvas(gameSideFrame2, width=400, height=50 / 2)
 gameEmptySpace1.grid(row=1, column=0)
-gameCancelText = Button(gameSideFrame2, "ANNULER", cancel, 15)
+gameCancelText = Button(gameSideFrame2, "ANNULER", gameCancel, 15)
 gameCancelText.canvas.grid(row=2, column=0)
-gameRestartText = Button(gameSideFrame2, "REDEMARRER", restartPopup, 15)
+gameRestartText = Button(gameSideFrame2, "REDEMARRER", gameRestartPopup, 15)
 gameRestartText.canvas.grid(row=3, column=0)
-gameQuitText = Button(gameSideFrame2, "QUITTER", quitPopup, 15)
+gameQuitText = Button(gameSideFrame2, "QUITTER", gameQuitPopup, 15)
 gameQuitText.canvas.grid(row=4, column=0)
 gameEmptySpace2 = Canvas(gameSideFrame2, width=400, height=50 / 2)
 gameEmptySpace2.grid(row=5, column=0)
 
 """Menu Widgets"""
-menuPlayButton = Button(menuFrame, "JOUER", lambda w=window: gameLayout(window), 50, _animationType=1)
-menuPlayButton.canvas.grid(row=0, column=0, columnspan=2)
+menuEmptySpace1 = Canvas(menuFrame, width=globalWidth, height=80)
+menuEmptySpace1.grid(row=0)
+menuLogo = Label(menuFrame, text="LE JEU DE DAMES", font=("Trebuchet MS", 70))
+menuLogo.grid(row=1)
+menuEmptySpace2 = Canvas(menuFrame, width=globalWidth, height=50)
+menuEmptySpace2.grid(row=2)
+menuPlayButton = Button(menuFrame, "JOUER", lambda w=window: gameLayout(window), 20, _animationType=1)
+menuPlayButton.canvas.grid(row=3)
+menuOptionsButton = Button(menuFrame, "OPTIONS", menuOptions, 20, _animationType=1)
+menuOptionsButton.canvas.grid(row=4)
+menuStatsButton = Button(menuFrame, "STATISTIQUES", menuStats, 20, _animationType=1)
+menuStatsButton.canvas.grid(row=5)
+menuQuitButton = Button(menuFrame, "QUITTER", menuQuit, 20, _animationType=1)
+menuQuitButton.canvas.grid(row=6)
 
 """Help Icon (displayed at all times)"""
 infoIcon = Button(window, "?", info, 20, _animationType=1, _tag="bold")
