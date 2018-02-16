@@ -17,3 +17,5 @@ turn.set("c'est au joueur {0} de jouer".format("BLANC" if player == -1 else "NOI
 selectedPlayer = -1
 highlightStuck = False
 nothingHappened = 0
+
+cpu = False
