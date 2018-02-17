@@ -138,6 +138,10 @@ def resetGame():
             if players[i][j] != -1:
                 players[i][j].canvas.unbind("<1>")
                 players[i][j].canvas.destroy()
+    for p in [-1, 1]:
+        for k in range(len(scorePlayer[p])):
+            if type(scorePlayer[p][k]) != int:
+                scorePlayer[p][k].canvas.destroy()
     scoreDisplay[-1].set(str(gSize * 2))
     scoreDisplay[+1].set(str(gSize * 2))
     onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
