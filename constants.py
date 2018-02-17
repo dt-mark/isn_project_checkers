@@ -1,8 +1,18 @@
 windowBorder = 50
+globalWidth, globalHeight = 800, 500
+
 gSize = 10
 bSize = 40
 playerCanvasSize = 30
 
+ai = 1
+humanPlayer = -1
+difficulty = 0
+gColours = 0
+
+refreshRate = 15
+
+mainFont = "Trebuchet MS"
 colour = {
     "red": "#%02X%02X%02X" % (200, 50, 50),
     "green": "#%02X%02X%02X" % (0, 170, 50),
