@@ -56,7 +56,10 @@ class Player:
         speed = 0.2 * refreshRate * 0.1 if self.score == 0 else 0.15 * refreshRate * 0.1
         self.xTo = lerp(self.xTo, self.x, speed)
         self.yTo = lerp(self.yTo, self.y, speed)
-        self.canvas.place(x=self.xTo, y=self.yTo)
+        xDif = abs(self.xTo-self.x)
+        yDif = abs(self.yTo-self.y)
+        farEnough = xDif > 0.01 and yDif > 0.01
+        if farEnough: self.canvas.place(x=self.xTo, y=self.yTo)
         if self.score == 1:
             self.sTo = lerp(self.sTo, playerCanvasSize / 2, speed)
             self.canvas.configure(width=self.sTo, height=self.sTo)
@@ -99,7 +102,6 @@ class Board:
                 b[i][j].bind("<1>", lambda event, x=i, y=j: click(event, x, y))
                 # Couleur des boutons
                 b[i][j].config(background=c[i][j])
-        canMove(_frame)
 
 """-----------------------------------------------------SOUND--------------------------------------------------------"""
 class Sound(Thread):
@@ -118,6 +120,31 @@ class Sound(Thread):
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
+
+"""Fonction qui s'éxécute toutes les N millisecondes"""
+def updateGame():
+    if restart.get() == 1: resetGame()
+    canMove()
+    window.after(refreshRate, updateGame)
+
+"""Fonction qui reset le jeu"""
+def resetGame():
+    global b, players, scoreDisplay, onePlayerCanEat, selectedPlayer, \
+           player, nothingHappened, highlightStuck, scorePlayer
+    for j in range(gSize):
+        for i in range(gSize):
+            b[i][j].unbind("<1>")
+            b[i][j].destroy()
+            if players[i][j] != -1:
+                players[i][j].canvas.unbind("<1>")
+                players[i][j].canvas.destroy()
+    scoreDisplay[-1].set(str(gSize * 2))
+    scoreDisplay[+1].set(str(gSize * 2))
+    onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
+    selectedPlayer, player, nothingHappened, highlightStuck = -1, -1, 0, False
+    scorePlayer = {-1: [0 for i in range(gSize * 2 + 1)], 1: [0 for i in range(gSize * 2 + 1)]}
+    Board(gameBoard, gSize, bSize)
+    restart.set(0)
 
 """Fonction qui détermine si un joueur est coincé"""
 def isBlocked(ptype):
@@ -154,17 +181,16 @@ def victory():
             break
 
 """Fonction qui check si on un joueur peut en manger un autre"""
-def canMove(widget):
+def canMove():
     global player, players, onePlayerCanEat
-    canMoveAgain = lambda w=widget: canMove(widget)
     onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
-    for b in [-1, -2]:
+    for be in [-1, -2]:
         for _player in [-1, 1]:
             for pi in range(gSize):
                 for pj in range(gSize):
                     if players[pi][pj] != -1 and players[pi][pj].type == _player:
-                        if highlight(pi, pj, _player, behaviour=b):
-                            if b == -1:
+                        if highlight(pi, pj, _player, behaviour=be):
+                            if be == -1:
                                 if _player == player:
                                     onePlayerCanEat[_player].append((pi, pj))
                             if c[pi][pj] != colour["green"]:
@@ -173,15 +199,12 @@ def canMove(widget):
                                 continue
                             else:
                                 resetCaseColour(withGreen=1)
-                                widget.after(refreshRate, canMoveAgain)
                                 return None
-        if b == -1:
+        if be == -1:
             if onePlayerCanEat != {-1: [(-1, -1)], 1: [(-1, -1)]}:
-                widget.after(refreshRate, canMoveAgain)
                 return None
             else:
                 continue
-    widget.after(refreshRate, canMoveAgain)
 
 """Fonction qui check où on peut aller"""
 def highlight(i, j, player, behaviour=1):
@@ -251,7 +274,7 @@ def eat(i, j, player, playerMovement):
              ePlayerType, _score=1)
     # Mouvement du canevas dans le tableau du score
     playersPerRow, playersPerColumn = 5, 4
-    hardCodedCoordinates = (462, 190)
+    hardCodedCoordinates = (460, 190)
     scorePlayersSpacingX = (gameScoreBoard.halfScoreBoardSize - \
                             ((gameScoreBoard.scoreBoardBorder * 2) + (playersPerRow * playerCanvasSize / 2))) \
                            / (playersPerRow + 1)
@@ -353,6 +376,7 @@ threadLock = Lock()
 
 #Afficher le menu
 layoutCreate(menuFrame)
+updateGame()
 
 #Configurer la fenêtre principale
 window.title("PROJET d'ISN")
