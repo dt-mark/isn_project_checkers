@@ -66,6 +66,15 @@ def mergeColour(c1, c2, x):
     r, g, b = int(lerp(c1[0], c2[0], x)), int(lerp(c1[1], c2[1], x)), int(lerp(c1[2], c2[2], x))
     return RGBToHex((r, g, b))
 
+"""Fonction qui met à jour les couleurs d'une frame de score"""
+def scoreBoardUpdateColours(frame):
+    frame.canvas.itemconfig(frame.rec1, fill=colour["white"])
+    frame.canvas.itemconfig(frame.rec2, fill=colour["black"])
+    frame.canvas.itemconfig(frame.rec3, fill=colour["black"])
+    frame.canvas.itemconfig(frame.rec4, fill=colour["white"])
+    frame.blackPlayerScore.configure(bg=colour["white"])
+    frame.whitePlayerScore.configure(bg=colour["black"])
+
 """Fonction qui définit la couleur d'une case"""
 def caseColour(i, j, col):
     if col != -1:
