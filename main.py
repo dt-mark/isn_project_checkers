@@ -3,22 +3,19 @@ from threading import *
 from winsound import *
 import webbrowser, os
 
-window = Tk()
-
 from constants import *
 from globals import *
 from functions import *
+from layout import *
 
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------CLASSES-------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
-playerObjects = []
-buttonObjects = []
+
 """----------------------------------------------------PLAYER--------------------------------------------------------"""
 class Player:
 
     def __init__(self, _frame, _x, _y, _type, _score=0):
-        playerObjects.append(self)
         self.score = _score
         if self.score == 0:
             self.x, self.y = cellToPixel(_x), cellToPixel(_y)
@@ -29,7 +26,6 @@ class Player:
         self.xTo, self.yTo, self.sTo = self.x, self.y, playerCanvasSize
         self.type = _type
         self.super = False
-        self.refreshRate = 15
         self.col1 = colour["whitePlayer"] if _type == -1 else colour["blackPlayer"]
         self.col2 = colour["whitePlayer"] if _type == +1 else colour["blackPlayer"]
         self.canvas = Canvas(_frame, width=playerCanvasSize, height=playerCanvasSize, \
@@ -57,7 +53,7 @@ class Player:
         Misc.lift(self.canvas, aboveThis=None)
 
     def update(self):
-        speed = 0.2 * self.refreshRate * 0.1 if self.score == 0 else 0.15 * self.refreshRate * 0.1
+        speed = 0.2 * refreshRate * 0.1 if self.score == 0 else 0.15 * refreshRate * 0.1
         self.xTo = lerp(self.xTo, self.x, speed)
         self.yTo = lerp(self.yTo, self.y, speed)
         self.canvas.place(x=self.xTo, y=self.yTo)
@@ -67,7 +63,7 @@ class Player:
             self.canvas.coords(self.canvasItem, 0, 0, self.sTo, self.sTo)
             self.canvas.itemconfigure(self.canvasItem, width=6)
         self.canvas.itemconfigure(self.canvasItem, fill=self.col1, outline=self.col2)
-        self.canvas.after(self.refreshRate, self.update)
+        self.canvas.after(refreshRate, self.update)
 
 
 """-----------------------------------------------------BOARD--------------------------------------------------------"""
@@ -105,150 +101,6 @@ class Board:
                 b[i][j].config(background=c[i][j])
         canMove(_frame)
 
-
-"""--------------------------------------------------SCORE-BOARD-----------------------------------------------------"""
-class ScoreBoard:
-
-    def __init__(self, _frame, _size, _underSize, _border):
-        self.scoreBoardSize, self.underScoreBoardSize = _size, _underSize
-        self.halfScoreBoardSize = self.scoreBoardSize[0] / 2
-        self.scoreBoardBorder = _border
-        self.halfScoreBoardBorder = self.scoreBoardBorder / 2
-        self.canvas = Canvas(_frame, bg="black", \
-                             width=self.scoreBoardSize[0], \
-                             height=self.scoreBoardSize[1] + self.underScoreBoardSize[1])
-        self.canvas.create_rectangle(self.scoreBoardBorder, \
-                                     self.scoreBoardBorder, \
-                                     self.scoreBoardSize[0] / 2 - self.halfScoreBoardBorder, \
-                                     self.scoreBoardSize[1] - self.halfScoreBoardBorder, \
-                                     fill=colour["white"])
-        self.canvas.create_rectangle(self.halfScoreBoardSize + self.halfScoreBoardBorder / 2, \
-                                     self.scoreBoardBorder, \
-                                     self.scoreBoardSize[0] - self.halfScoreBoardBorder, \
-                                     self.scoreBoardSize[1] - self.halfScoreBoardBorder, \
-                                     fill=colour["black"])
-        self.canvas.create_rectangle(self.scoreBoardBorder, \
-                                     self.scoreBoardSize[1] + self.halfScoreBoardBorder / 2, \
-                                     self.halfScoreBoardSize - self.halfScoreBoardBorder, \
-                                     self.scoreBoardSize[1] + self.underScoreBoardSize[1] - self.halfScoreBoardBorder, \
-                                     fill=colour["black"])
-        self.canvas.create_rectangle(self.halfScoreBoardSize + self.halfScoreBoardBorder / 2, \
-                                     self.scoreBoardSize[1] + self.halfScoreBoardBorder / 2, \
-                                     self.underScoreBoardSize[0] - self.halfScoreBoardBorder, \
-                                     self.scoreBoardSize[1] + self.underScoreBoardSize[1] - self.halfScoreBoardBorder, \
-                                     fill=colour["white"])
-        self.playerScoreSize = 60
-        self.playerScoreOffset = (self.halfScoreBoardSize - self.playerScoreSize * 2) / 2 + self.playerScoreSize / 6
-        self.blackPlayerScore = Label(self.canvas, textvariable=scoreDisplay[-1], \
-                                      font=("Trebuchet MS", self.playerScoreSize, "bold"), \
-                                      fg=colour["blackPlayer"], bg=colour["white"])
-        self.blackPlayerScore.place(x=self.playerScoreOffset, \
-                                    y=(self.scoreBoardSize[1] - self.playerScoreSize) / 4)
-        self.whitePlayerScore = Label(self.canvas, textvariable=scoreDisplay[1], \
-                                      font=("Trebuchet MS", self.playerScoreSize, "bold"), \
-                                      fg=colour["whitePlayer"], bg=colour["black"])
-        self.whitePlayerScore.place(x=self.halfScoreBoardSize + self.playerScoreOffset, \
-                                    y=(self.scoreBoardSize[1] - self.playerScoreSize) / 4)
-
-
-"""----------------------------------------------------BUTTON--------------------------------------------------------"""
-class Button:
-
-    def __init__(self, _frame, _text, _func, _size, _animationType=0, _font="Trebuchet MS", _tag=""):
-        buttonObjects.append(self)
-        self.animationType = _animationType
-        self.refreshRate = 10
-        self.text, self.size, self.func = _text, _size, _func
-        self.ww, self.hh = (len(_text) + 3) * _size, 1.85 * _size
-        self.canvas = Canvas(_frame, width=self.ww, height=self.hh - 3)
-        self.canvas.label = self.canvas.create_text(self.ww / 2, self.hh / 2, text=self.text)
-        self.canvas.arrowSpace = 0
-        self.canvas.colourA, self.canvas.colourT = 1, 0.5
-        self.canvas.font, self.canvas.tag = _font, _tag
-        self.canvas.size, self.canvas.aimedSize = self.size, self.size
-        self.canvas.style = (self.canvas.font, self.canvas.size, self.canvas.tag)
-        self.canvas.itemconfig(self.canvas.label, font=self.canvas.style)
-        self.canvas.bind("<1>",
-                         lambda event, func=self.func, anim=self.animationType: self.buttonPress(event, func, anim))
-        self.canvas.bind("<Enter>", lambda event, t=+1, anim=self.animationType: self.buttonMouse(event, t, anim))
-        self.canvas.bind("<Leave>", lambda event, t=-1, anim=self.animationType: self.buttonMouse(event, t, anim))
-        ax1, ax2 = self.ww / 2 + (len(self.text) / 2) * self.size, self.ww / 2 - (len(self.text) / 2) * self.size
-        self.arrow1 = self.canvas.create_polygon(ax1 + 10, self.hh / 2, ax1, 0 + 5, ax1, self.hh - 5, fill="white",
-                                                 width=2)
-        self.arrow2 = self.canvas.create_polygon(ax2 - 10, self.hh / 2, ax2, 0 + 5, ax2, self.hh - 5, fill="white",
-                                                 width=2)
-        self.update()
-
-    def buttonMouse(self, event, enterOrLeave, anim):
-        caller = self.canvas
-        if anim == 0:
-            caller.colourA = clamp(-enterOrLeave, 0, 1)
-        if anim == 1:
-            caller.aimedSize = self.size + 5 * clamp(enterOrLeave, 0, 1)
-            caller.colourT = (1 - self.size / caller.size) + 0.25
-
-    def buttonPress(self, event, func, anim):
-        caller = self.canvas
-        if anim == 0:
-            caller.size += 4
-            caller.arrowSpace = 1
-        if anim == 1:
-            caller.size -= 4
-        Sound(sound["click"])
-        func(event)
-
-    def update(self):
-        if self.animationType == 0:
-            RGBcolourA = mergeColour(RGBToHex((75, 75, 75)), RGBToHex((255, 255, 255)), self.canvas.colourA)
-            RGBcolourB = mergeColour(RGBToHex((215, 215, 215)), RGBToHex((255, 255, 255)), self.canvas.colourA)
-            self.canvas.arrowSpace = lerp(self.canvas.arrowSpace, 0, 0.2)
-            ax1 = self.ww / 2 + (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
-            ax2 = self.ww / 2 - (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
-            self.canvas.itemconfig(self.arrow1, outline=RGBcolourA)
-            self.canvas.itemconfig(self.arrow2, outline=RGBcolourA)
-            self.canvas.configure(bg=RGBcolourB)
-            self.canvas.coords(self.arrow1, ax1 + 10, self.hh / 2, ax1, 0 + 5, ax1, self.hh - 5)
-            self.canvas.coords(self.arrow2, ax2 - 10, self.hh / 2, ax2, 0 + 5, ax2, self.hh - 5)
-            self.canvas.size = lerp(self.canvas.size, self.size, 0.2)
-        if self.animationType == 1:
-            RGBcolourT = mergeColour(RGBToHex((0, 0, 0)), RGBToHex((255, 255, 255)), self.canvas.colourT)
-            self.canvas.itemconfig(self.canvas.label, fill=RGBcolourT)
-            self.canvas.size = lerp(self.canvas.size, self.canvas.aimedSize, 0.2)
-        self.canvas.style = (self.canvas.font, int(self.canvas.size), self.canvas.tag)
-        self.canvas.itemconfig(self.canvas.label, font=self.canvas.style)
-        self.canvas.after(self.refreshRate, self.update)
-
-
-"""-----------------------------------------------------POPUP--------------------------------------------------------"""
-class Popup:
-
-    def __init__(self, _text, _textOption1, _textOption2, _funcOption1, _funcOption2):
-        self.text, self.tO1, self.tO2 = _text, _textOption1, _textOption2
-        self.O1, self.O2 = _funcOption1, _funcOption2
-        assignFunction = lambda a: ((lambda event: self.cancelPopup(event)) if a == -1 \
-                                        else (lambda event: self.acceptPopup(event, a)))
-        self.O1, self.O2 = assignFunction(self.O1), assignFunction(self.O2)
-        self.top = Toplevel()
-        self.label = Label(self.top, text=self.text, font=("Trebuchet MS", 20), fg=colour["black"])
-        self.button1 = Button(self.top, self.tO1, self.O1, 15, _animationType=1)
-        self.button2 = Button(self.top, self.tO2, self.O2, 15, _animationType=1)
-        self.label.grid(row=0, column=0, columnspan=2)
-        self.button1.canvas.grid(row=1, column=0)
-        self.button2.canvas.grid(row=1, column=1)
-        self.top.resizable(width=False, height=False)
-        self.top.transient(window)
-        self.top.grab_set()
-        center(self.top, window)
-
-    def cancelPopup(self, event):
-        self.top.destroy()
-        del self
-
-    def acceptPopup(self, event, func):
-        func(event)
-        self.cancelPopup(event)
-
-
 """-----------------------------------------------------SOUND--------------------------------------------------------"""
 class Sound(Thread):
 
@@ -262,7 +114,6 @@ class Sound(Thread):
         threadLock.acquire()
         # Free lock to release next thread
         threadLock.release()
-
 
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
@@ -322,15 +173,15 @@ def canMove(widget):
                                 continue
                             else:
                                 resetCaseColour(withGreen=1)
-                                widget.after(15, canMoveAgain)
+                                widget.after(refreshRate, canMoveAgain)
                                 return None
         if b == -1:
             if onePlayerCanEat != {-1: [(-1, -1)], 1: [(-1, -1)]}:
-                widget.after(15, canMoveAgain)
+                widget.after(refreshRate, canMoveAgain)
                 return None
             else:
                 continue
-    widget.after(15, canMoveAgain)
+    widget.after(refreshRate, canMoveAgain)
 
 """Fonction qui check où on peut aller"""
 def highlight(i, j, player, behaviour=1):
@@ -490,107 +341,26 @@ def click(event, i, j):
             Sound(sound["deselect"])
     victory()
 
-"""Fonction des boutons"""
-def gameRestartPopup(event):
-    Popup("Voulez-vous redémarrer?", "Oui", "Non", gameRestart, -1)
-def gameQuitPopup(event):
-    Popup("Voulez-vous quitter?", "Oui", "Non", gameQuit, -1)
-def gameRestart(event):
-    print("gameRestart")
-def gameQuit(event):
-    layoutDelete(gameFrame)
-    menuLayout(window)
-def gameCancel(event):
-    print("gameCancel")
-def menuOptions(event):
-    print("menuOptions")
-def menuStats(event):
-    print("menuStats")
-def menuQuit(event):
-    print("menuQuit")
-def info(event):
-    webbrowser.open(os.path.abspath("_instructions.pdf"))
-
-"""Changements de layout"""
-def gameLayout(window):
-    global gameFrame
-    gameFrame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
-    layoutDelete(menuFrame)
-def menuLayout(window):
-    global menuFrame
-    menuFrame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
-    layoutDelete(gameFrame)
-def layoutDelete(frame):
-    frame.pack_forget()
-
-"""------------------------------------------------------------------------------------------------------------------"""
-"""----------------------------------------------------LAYOUT--------------------------------------------------------"""
-"""------------------------------------------------------------------------------------------------------------------"""
-
-globalWidth, globalHeight = 800, 500
-
-"""Main Frames"""
-gameFrame = Frame(window, width=globalWidth, height=globalHeight)
-gameFrame.grid_propagate(False)
-menuFrame = Frame(window, width=globalWidth, height=globalHeight)
-menuFrame.grid_propagate(False)
-
-"""Game Widgets"""
-gameSideFrame1 = Frame(gameFrame)
-gameSideFrame1.grid(row=1, column=0, sticky="E")
-gameSideFrame2 = Frame(gameFrame)
-gameSideFrame2.grid(row=1, column=1, sticky="W")
-gameTitle = Label(gameSideFrame1, text="LE JEU DE DAMES", font=("Trebuchet MS", 25), height=1)
-gameTitle.grid(row=0, column=0)
-gameBoard = Frame(gameSideFrame1, borderwidth=5, bg="black")
-gameBoard.grid(row=1, column=0)
-Board(gameBoard, gSize, bSize)
-gameTurnText = Label(gameSideFrame1, textvariable=turn, font=("Trebuchet MS", 15))
-gameTurnText.grid(row=2, column=0)
-gameScoreBoard = ScoreBoard(gameSideFrame2, (300, 150), (300, 100), 6)
-gameScoreBoard.canvas.grid(row=0, column=0)
-gameEmptySpace1 = Canvas(gameSideFrame2, width=400, height=50 / 2)
-gameEmptySpace1.grid(row=1, column=0)
-gameCancelText = Button(gameSideFrame2, "ANNULER", gameCancel, 15)
-gameCancelText.canvas.grid(row=2, column=0)
-gameRestartText = Button(gameSideFrame2, "REDEMARRER", gameRestartPopup, 15)
-gameRestartText.canvas.grid(row=3, column=0)
-gameQuitText = Button(gameSideFrame2, "QUITTER", gameQuitPopup, 15)
-gameQuitText.canvas.grid(row=4, column=0)
-gameEmptySpace2 = Canvas(gameSideFrame2, width=400, height=50 / 2)
-gameEmptySpace2.grid(row=5, column=0)
-
-"""Menu Widgets"""
-menuEmptySpace1 = Canvas(menuFrame, width=globalWidth, height=80)
-menuEmptySpace1.grid(row=0)
-menuLogo = Label(menuFrame, text="LE JEU DE DAMES", font=("Trebuchet MS", 70))
-menuLogo.grid(row=1)
-menuEmptySpace2 = Canvas(menuFrame, width=globalWidth, height=50)
-menuEmptySpace2.grid(row=2)
-menuPlayButton = Button(menuFrame, "JOUER", lambda w=window: gameLayout(window), 20, _animationType=1)
-menuPlayButton.canvas.grid(row=3)
-menuOptionsButton = Button(menuFrame, "OPTIONS", menuOptions, 20, _animationType=1)
-menuOptionsButton.canvas.grid(row=4)
-menuStatsButton = Button(menuFrame, "STATISTIQUES", menuStats, 20, _animationType=1)
-menuStatsButton.canvas.grid(row=5)
-menuQuitButton = Button(menuFrame, "QUITTER", menuQuit, 20, _animationType=1)
-menuQuitButton.canvas.grid(row=6)
-
-"""Help Icon (displayed at all times)"""
-infoIcon = Button(window, "?", info, 20, _animationType=1, _tag="bold")
-infoIcon.canvas.place(relx=1, x=0, y=20, anchor=NE)
-
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------EXECUTE-------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
+
+#Éléments d'interface qui ont besoin des classes définies dans "main.py" pour exister
+Board(gameBoard, gSize, bSize)
+
+#Son
 threadLock = Lock()
 
-menuLayout(window)
+#Afficher le menu
+layoutCreate(menuFrame)
 
+#Configurer la fenêtre principale
 window.title("PROJET d'ISN")
 window.configure(bg="white")
 window.tk_setPalette(background="white")
 window.resizable(width=False, height=False)
 window.protocol("WM_DELETE_WINDOW", lambda w=window: closeWindow(w))
 center(window, -1)
+
+#Éxécuter
 window.mainloop()
