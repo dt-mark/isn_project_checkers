@@ -33,8 +33,10 @@ class Button:
                                                  width=2)
         self.arrow2 = self.canvas.create_polygon(ax2 - 10, self.hh / 2, ax2, 0 + 5, ax2, self.hh - 5, fill="white",
                                                  width=2)
+        self.counter = 0
         self.update()
     def buttonMouse(self, event, enterOrLeave, anim):
+        self.counter = 0
         caller = self.canvas
         if anim == 0:
             caller.colourA = clamp(-enterOrLeave, 0, 1)
@@ -43,6 +45,7 @@ class Button:
             caller.colourT = (1 - self.size / caller.size) + 0.25
             if enterOrLeave == -1: caller.colourT = 0.5
     def buttonPress(self, event, func, anim):
+        self.counter = 0
         caller = self.canvas
         if anim == 0:
             caller.size += 4
@@ -52,6 +55,7 @@ class Button:
         #Sound(sound["click"])
         func(event)
     def update(self):
+        self.counter += 1
         if self.animationType == 0:
             RGBcolourA = mergeColour(RGBToHex((75, 75, 75)), RGBToHex((255, 255, 255)), self.canvas.colourA)
             RGBcolourB = mergeColour(RGBToHex((215, 215, 215)), RGBToHex((255, 255, 255)), self.canvas.colourA)
@@ -69,7 +73,7 @@ class Button:
             self.canvas.itemconfig(self.canvas.label, fill=RGBcolourT)
             self.canvas.size = lerp(self.canvas.size, self.canvas.aimedSize, 0.2)
         self.canvas.style = (self.canvas.font, int(self.canvas.size), self.canvas.tag)
-        self.canvas.itemconfig(self.canvas.label, font=self.canvas.style)
+        if self.counter <= 100: self.canvas.itemconfig(self.canvas.label, font=self.canvas.style)
         self.canvas.after(self.refreshRate, self.update)
 
 """-----------------------------------------------------POPUP--------------------------------------------------------"""
@@ -99,7 +103,8 @@ class Popup:
         del self
     def acceptPopup(self, event, func):
         func(event)
-        self.cancelPopup(event)
+        if func != menuQuit:
+            self.cancelPopup(event)
 
 """-----------------------------------------------------APERCU-------------------------------------------------------"""
 
@@ -159,7 +164,7 @@ class ScoreBoard:
                                     y=(self.scoreBoardSize[1] - self.playerScoreSize) / 4)
 
 """------------------------------------------------------------------------------------------------------------------"""
-"""---------------------------------------------------FUNCTIONS------------------------------------------------------"""
+"""---------------------------------------------------FONCTIONS------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
 
 """------------------------------------------------BOUTONS-DU-JEU----------------------------------------------------"""
@@ -167,10 +172,11 @@ def gameRestartPopup(event):
     Popup(text="Voulez-vous redémarrer?\n", \
           textOption1="Oui", textOption2="Non", funcOption1=gameRestart, funcOption2=-1)
 def gameQuitPopup(event):
-    Popup(text="Voulez-vous quitter?\n", \
+    Popup(text="Voulez-vous revenir\nau menu principal?\n", \
           textOption1="Oui", textOption2="Non", funcOption1=gameQuit, funcOption2=-1)
 def gameRestart(event):
-    print("gameRestart")
+    resetCaseColour()
+    reset()
 def gameQuit(event):
     layoutCreate(menuFrame)
 def gameCancel(event):
@@ -181,8 +187,11 @@ def menuOptions(event):
     layoutCreate(optionsFrame)
 def menuStats(event):
     print("menuStats")
+def menuQuitPopup(event):
+    Popup(text="Voulez-vous quitter?\n", \
+          textOption1="Oui", textOption2="Non", funcOption1=menuQuit, funcOption2=-1)
 def menuQuit(event):
-    print("menuQuit")
+    closeWindow(window)
 
 """----------------------------------------------BOUTONS-DES-OPTIONS-------------------------------------------------"""
 def optionsMode(event, value):
@@ -293,68 +302,87 @@ def updateOptionsButtons():
 """------------------------------------------------------------------------------------------------------------------"""
 
 """--------------------------------------------------MAIN-FRAMES-----------------------------------------------------"""
-currentFrame = 0
+"""Jeu"""
 gameFrame = Frame(window, width=globalWidth, height=globalHeight)
 gameFrame.grid_propagate(False)
+"""Menu"""
 menuFrame = Frame(window, width=globalWidth, height=globalHeight)
 menuFrame.grid_propagate(False)
+"""Options"""
 optionsFrame = Frame(window, width=globalWidth, height=globalHeight)
 optionsFrame.grid_propagate(False)
+"""Statistiques"""
 statsFrame = Frame(window, width=globalWidth, height=globalHeight)
 statsFrame.grid_propagate(False)
+"""Tout"""
+currentFrame = 0
 mainFrames = [gameFrame, menuFrame, optionsFrame, statsFrame]
 
 """-----------------------------------------------------GAME---------------------------------------------------------"""
+"""Frames Secondaires"""
 gameSideFrame1 = Frame(gameFrame)
 gameSideFrame1.grid(row=1, column=0, sticky="E")
 gameSideFrame2 = Frame(gameFrame)
 gameSideFrame2.grid(row=1, column=1, sticky="W")
+"""Titre"""
 gameTitle = Label(gameSideFrame1, text="LE JEU DE DAMES", font=(mainFont, 25), height=1)
 gameTitle.grid(row=0, column=0)
+"""Planche de jeu"""
 gameBoard = Frame(gameSideFrame1, borderwidth=5, bg="black")
 gameBoard.grid(row=1, column=0)
 #Board(gameBoard, gSize, bSize)
+"""Texte indiquant quel joueur doit jouer"""
 gameTurnText = Label(gameSideFrame1, textvariable=turn, font=(mainFont, 15))
 gameTurnText.grid(row=2, column=0)
+"""Planche de score"""
 gameScoreBoard = ScoreBoard(gameSideFrame2, (300, 150), (300, 100), 6)
+"""Espace Vide"""
 gameScoreBoard.canvas.grid(row=0, column=0)
-gameEmptySpace1 = Canvas(gameSideFrame2, width=400, height=50 / 2)
-gameEmptySpace1.grid(row=1, column=0)
+gameSideFrame2.grid_rowconfigure(1, minsize=30)
+gameSideFrame2.grid_columnconfigure(0, minsize=400)
+"""Boutons"""
 gameCancelText = Button(gameSideFrame2, text="ANNULER", func=gameCancel, size=15)
 gameCancelText.canvas.grid(row=2, column=0)
 gameRestartText = Button(gameSideFrame2, text="REDEMARRER", func=gameRestartPopup, size=15)
 gameRestartText.canvas.grid(row=3, column=0)
 gameQuitText = Button(gameSideFrame2, text="QUITTER", func=gameQuitPopup, size=15)
 gameQuitText.canvas.grid(row=4, column=0)
-gameEmptySpace2 = Canvas(gameSideFrame2, width=400, height=50 / 2)
-gameEmptySpace2.grid(row=5, column=0)
+"""Espace Vide"""
+gameSideFrame2.grid_rowconfigure(5, minsize=30)
 
 """-----------------------------------------------------MENU---------------------------------------------------------"""
-menuEmptySpace1 = Canvas(menuFrame, width=globalWidth, height=80)
-menuEmptySpace1.grid(row=0)
+"""Espace Vide"""
+menuFrame.grid_rowconfigure(0, minsize=80)
+menuFrame.grid_columnconfigure(0, minsize=globalWidth)
+"""Logo"""
 menuLogo = Label(menuFrame, text="LE JEU DE DAMES", font=(mainFont, 70))
 menuLogo.grid(row=1)
-menuEmptySpace2 = Canvas(menuFrame, width=globalWidth, height=50)
-menuEmptySpace2.grid(row=2)
+"""Espace Vide"""
+menuFrame.grid_rowconfigure(2, minsize=50)
+"""Boutons"""
 menuPlayButton = Button(menuFrame, text="JOUER", func=lambda w=window:layoutCreate(gameFrame), size=20, animationType=1)
 menuPlayButton.canvas.grid(row=3)
-menuOptionsButton = Button(menuFrame, text="OPTIONS", func=menuOptions, size=20, animationType=1)
+menuOptionsButton = Button(menuFrame, text="PARAMÈTRES", func=menuOptions, size=20, animationType=1)
 menuOptionsButton.canvas.grid(row=4)
 menuStatsButton = Button(menuFrame, text="STATISTIQUES", func=menuStats, size=20, animationType=1)
 menuStatsButton.canvas.grid(row=5)
-menuQuitButton = Button(menuFrame, text="QUITTER", func=menuQuit, size=20, animationType=1)
+menuQuitButton = Button(menuFrame, text="QUITTER", func=menuQuitPopup, size=20, animationType=1)
 menuQuitButton.canvas.grid(row=6)
 
 """---------------------------------------------------OPTIONS--------------------------------------------------------"""
+"""Frames Secondaires"""
 optionsSideFrame1 = Frame(optionsFrame, width=int(globalWidth/2), height=globalHeight)
 optionsSideFrame1.grid_propagate(False)
 optionsSideFrame1.grid(row=0, column=0, sticky="E")
 optionsSideFrame2 = Frame(optionsFrame, width=int(globalWidth/2), height=globalHeight)
 optionsSideFrame2.grid_propagate(False)
 optionsSideFrame2.grid(row=0, column=1, sticky="W")
+"""Titre"""
 optionsTitle = Label(optionsSideFrame1, text="PARAMÈTRES", font=(mainFont, 25), height=1)
 optionsTitle.grid(row=0, column=0, columnspan=6)
+"""Espace Vide"""
 optionsSideFrame1.grid_rowconfigure(1, minsize=30)
+"""Options Mode de Jeu"""
 optionsModeLabel = Label(optionsSideFrame1, text=h(11)+"Mode de Jeu"+h(11), fg=colour["black"], font=(mainFont, 20))
 optionsModeLabel.grid(row=2, column=0, columnspan=6)
 optionsModeChoice1 = Button(optionsSideFrame1, text="AVEC LA MACHINE", func=lambda event, v=0: optionsMode(event, v), \
@@ -364,6 +392,7 @@ optionsModeChoice2 = Button(optionsSideFrame1, text="À DEUX JOUEURS", func=lamb
                             size=15, animationType=1)
 optionsModeChoice2.canvas.grid(row=4, column=0, columnspan=6)
 optionsSideFrame1.grid_rowconfigure(5, minsize=15)
+"""Options Couleur de son Jeton"""
 optionsPlayerLabel = Label(optionsSideFrame1, text=h(8)+"Couleur du Jeton"+h(8), fg=colour["black"],font=(mainFont, 20))
 optionsPlayerLabel.grid(row=6, column=0, columnspan=6)
 optionsPlayerChoice1 = Button(optionsSideFrame1, text="BLANC", func=lambda event, v=-1: optionsPlayer(event, v), \
@@ -373,6 +402,7 @@ optionsPlayerChoice2 = Button(optionsSideFrame1, text="NOIR", func=lambda event,
                               size=15, animationType=1)
 optionsPlayerChoice2.canvas.grid(row=8, column=0, columnspan=6)
 optionsSideFrame1.grid_rowconfigure(9, minsize=15)
+"""Options Difficulté"""
 optionsDifficultyLabel = Label(optionsSideFrame1, text=h(12)+"Difficulté"+h(12), fg=colour["black"],font=(mainFont, 20))
 optionsDifficultyLabel.grid(row=10, column=0, columnspan=6)
 optionsDifficultyChoice1 = Button(optionsSideFrame1, text="0", func=lambda event, v=0: optionsDifficulty(event, v), \
@@ -394,6 +424,7 @@ optionsDifficultyChoice6 = Button(optionsSideFrame1, text="+", func=lambda event
                                   size=15, animationType=1)
 optionsDifficultyChoice6.canvas.grid(row=11, column=5, columnspan=1)
 optionsSideFrame1.grid_rowconfigure(12, minsize=15)
+"""Options Esthétiques"""
 optionsGridLabel = Label(optionsSideFrame1,text=h(6)+"Couleurs de la Grille"+h(6),fg=colour["black"],font=(mainFont,20))
 optionsGridLabel.grid(row=13, column=0, columnspan=6)
 optionsGridChoice1 = Button(optionsSideFrame1, text="A", func=lambda event, v=0: optionsGrid(event, v), \
@@ -415,12 +446,14 @@ optionsGridChoice6 = Button(optionsSideFrame1, text="F", func=lambda event, v=5:
                             size=15, animationType=1)
 optionsGridChoice6.canvas.grid(row=14, column=5, columnspan=1)
 optionsSideFrame2.grid_rowconfigure(0, minsize=(48+30))
+"""Options Statistiques"""
 optionsStatsLabel = Label(optionsSideFrame2, text=h(11)+"Statistiques"+h(11), fg=colour["black"], font=(mainFont, 20))
 optionsStatsLabel.grid(row=1)
 optionsStatsChoice1 = Button(optionsSideFrame2, text="SUPPRIMER LES DONNÉES", func=optionsStats, \
                              size=15, animationType=1)
 optionsStatsChoice1.canvas.grid(row=2)
 optionsSideFrame2.grid_rowconfigure(3, minsize=15*1.85+1+15)
+"""Aperçu des couleurs"""
 optionsPreviewLabel = Label(optionsSideFrame2, text=h(14)+"Aperçu"+h(14), fg=colour["black"], font=(mainFont, 20))
 optionsPreviewLabel.grid(row=4)
 optionsSideFrame2.grid_rowconfigure(5, minsize=20)
@@ -428,7 +461,9 @@ optionsPreviewChoice1 = BoardPreview(optionsSideFrame2)
 optionsPreviewChoice1.frame.grid(row=6)
 
 """-----------------------------------------------------MISC---------------------------------------------------------"""
+"""Bouton d'aide"""
 infoIcon = Button(window, text="?", func=info, size=20, animationType=1, tag="bold")
 infoIcon.canvas.place(relx=1, x=0, y=20, anchor=NE)
+"""Bouton de retour"""
 backIcon = Button(window, text="<", func=back, size=20, animationType=1, tag="bold")
 backIcon.canvas.place(relx=0, x=0, y=20, anchor=NW)
