@@ -24,3 +24,10 @@ turn.set("c'est au joueur {0} de jouer".format("BLANC" if player == -1 else "NOI
 
 highlightStuck = False
 nothingHappened = 0
+restart = IntVar()
+restart.set(0)
+
+
+def reset():
+    global scoreDisplay
+    restart.set(1)
