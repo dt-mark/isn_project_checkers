@@ -24,6 +24,14 @@ def clamp(x, a, b):
     elif x > b: return b
     else: return x
 
+"""Fonction qui retourne la somme des membres d'une liste entre deux bornes"""
+def listSum(l, a, b):
+    result = 0
+    for i, j in enumerate(l):
+        if isBetween(i, a, b):
+            result += j
+    return result
+
 """Fonction qui retourne si une valeur est entre 2 bornes"""
 def isBetween(x, a, b):
     a = min(a, b)
@@ -109,7 +117,7 @@ def cellToPixel(x):
 
 """Fonction qui convertit des coordonnées du board en coordonnées du frame"""
 def boardToFrame(a, xOrY):
-    boardBorder = 4
+    boardBorder = 5
     titleHeight = 50
     if xOrY == "x": return a + boardBorder
     if xOrY == "y": return a + titleHeight + boardBorder
