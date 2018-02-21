@@ -1,8 +1,11 @@
 from tkinter import *
+from tkinter import ttk
 
 from constants import *
 from globals import *
 from functions import *
+from stats import *
+import optionvars
 
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------CLASSES-------------------------------------------------------"""
@@ -79,20 +82,51 @@ class Button:
 """-----------------------------------------------------POPUP--------------------------------------------------------"""
 class Popup:
 
-    def __init__(self, text="", textOption1="", textOption2="", funcOption1=-1, funcOption2=-1):
-        self.text, self.tO1, self.tO2 = text, textOption1, textOption2
+    def __init__(self, text="", subtext="", textOption1="", textOption2="", funcOption1=-1, funcOption2=-1, \
+                 endGame=False, twoPlayers=False):
+        self.text, self.subtext, self.tO1, self.tO2 = text, subtext, textOption1, textOption2
         self.O1, self.O2 = funcOption1, funcOption2
         assignFunction = lambda a: ((lambda event: self.cancelPopup(event)) if a == -1 \
                                         else (lambda event: self.acceptPopup(event, a)))
         self.O1, self.O2 = assignFunction(self.O1), assignFunction(self.O2)
         self.top = Toplevel()
-        self.canvas = Canvas(self.top)
+        self.canvas = Canvas(self.top, bd=0, highlightthickness=0, selectborderwidth=0)
         self.label = Label(self.canvas, text=self.text, font=(mainFont, 20), fg=colour["black"])
-        self.button1 = Button(self.canvas, text=self.tO1, func=self.O1, size=15, animationType=1)
-        self.button2 = Button(self.canvas, text=self.tO2, func=self.O2, size=15, animationType=1)
         self.label.grid(row=0, column=0, columnspan=2)
-        self.button1.canvas.grid(row=1, column=0)
-        self.button2.canvas.grid(row=1, column=1)
+        self.sublabel = Label(self.canvas, text=self.subtext, font=(mainFont, 15), fg=colour["blackPlayer"])
+        self.sublabel.grid(row=1, column=0, columnspan=2)
+        if not endGame:
+            self.button1 = Button(self.canvas, text=self.tO1, func=self.O1, size=15, animationType=1)
+            self.button2 = Button(self.canvas, text=self.tO2, func=self.O2, size=15, animationType=1)
+            self.button1.canvas.grid(row=2, column=0)
+            self.button2.canvas.grid(row=2, column=1)
+        else:
+            self.subsubtext = "\nVeuillez entrer vo{0} nom{1} ci-dessous:". format("s" if twoPlayers else "tre", \
+                                                                                     "s" if twoPlayers else "")
+            self.subsublabel = Label(self.canvas, text=self.subsubtext, font=(mainFont, 12), fg=colour["blackPlayer"])
+            self.subsublabel.grid(row=2, column=0, columnspan=2)
+            entryTextColour = mergeColour(colour["whitePlayer"], colour["blackPlayer"], 0.4)
+            entryHighlightBgColour = mergeColour(colour["whitePlayer"], colour["white"], 0.6)
+            entryHighlightFgColour = mergeColour(colour["whitePlayer"], colour["black"], 0.6)
+            entry1Text = "nom du joueur {0}". format("blanc" if twoPlayers else "")
+            self.entry1 = Entry(self.canvas, font=(mainFont, 10), fg=entryTextColour, justify=CENTER, relief=FLAT, \
+                                selectbackground=entryHighlightBgColour, selectforeground=entryHighlightFgColour)
+            self.entry1.insert(0, entry1Text)
+            self.entry1.bind("<FocusIn>", lambda event, t=entry1Text: self.entryFocusIn(event, t))
+            self.entry1.bind("<FocusOut>", lambda event, t=entry1Text: self.entryFocusOut(event, t))
+            self.entry1.grid(row=3, column=0, columnspan=2)
+            if twoPlayers:
+                entry2Text = "nom du joueur noir"
+                self.entry2 = Entry(self.canvas, font=(mainFont, 10), fg=entryTextColour, justify=CENTER, relief=FLAT, \
+                                    selectbackground=entryHighlightBgColour, selectforeground=entryHighlightFgColour)
+                self.entry2.insert(0, entry2Text)
+                self.entry2.bind("<FocusIn>", lambda event, t=entry2Text: self.entryFocusIn(event, t))
+                self.entry2.bind("<FocusOut>", lambda event, t=entry2Text: self.entryFocusOut(event, t))
+                self.entry2.grid(row=4, column=0, columnspan=2)
+            okFunction = lambda event, g=gameSaveName: self.acceptPopup(event, g)
+            self.canvas.grid_rowconfigure(5, minsize=15)
+            self.button = Button(self.canvas, text="OK", func= okFunction, size=15, animationType=1)
+            self.button.canvas.grid(row=6, column=0, columnspan=2)
         self.canvas.pack(padx=15, pady=15, fill="both")
         self.top.resizable(width=False, height=False)
         self.top.transient(window)
@@ -105,6 +139,12 @@ class Popup:
         func(event)
         if func != menuQuit:
             self.cancelPopup(event)
+    def entryFocusIn(self, event, defaultText):
+        if event.widget.get() == defaultText:
+            event.widget.delete(0, END)
+    def entryFocusOut(self, event, defaultText):
+        if event.widget.get() == "":
+            event.widget.insert(0, defaultText)
 
 """-----------------------------------------------------APERCU-------------------------------------------------------"""
 
@@ -167,12 +207,25 @@ class ScoreBoard:
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
 
+"""------------------------------------------------BOUTONS-DU-MENU---------------------------------------------------"""
+def menuPlay(event):
+    layoutCreate(gameFrame)
+def menuOptions(event):
+    layoutCreate(optionsFrame)
+def menuStats(event):
+    layoutCreate(statsFrame)
+def menuQuitPopup(event):
+    Popup(text="Voulez-vous quitter?", \
+          textOption1="Oui", textOption2="Non", funcOption1=menuQuit, funcOption2=-1)
+def menuQuit(event):
+    closeWindow(window)
+
 """------------------------------------------------BOUTONS-DU-JEU----------------------------------------------------"""
 def gameRestartPopup(event):
-    Popup(text="Voulez-vous redémarrer?\n", \
+    Popup(text="Voulez-vous redémarrer?", \
           textOption1="Oui", textOption2="Non", funcOption1=gameRestart, funcOption2=-1)
 def gameQuitPopup(event):
-    Popup(text="Voulez-vous revenir\nau menu principal?\n", \
+    Popup(text="Voulez-vous revenir\nau menu principal?", \
           textOption1="Oui", textOption2="Non", funcOption1=gameQuit, funcOption2=-1)
 def gameRestart(event):
     resetCaseColour()
@@ -180,61 +233,55 @@ def gameRestart(event):
 def gameQuit(event):
     layoutCreate(menuFrame)
 def gameCancel(event):
+    global winner
     print("gameCancel")
-
-"""------------------------------------------------BOUTONS-DU-MENU---------------------------------------------------"""
-def menuOptions(event):
-    layoutCreate(optionsFrame)
-def menuStats(event):
-    print("menuStats")
-def menuQuitPopup(event):
-    Popup(text="Voulez-vous quitter?\n", \
-          textOption1="Oui", textOption2="Non", funcOption1=menuQuit, funcOption2=-1)
-def menuQuit(event):
-    closeWindow(window)
+    if optionvars.ai == 1:
+        endStr = "{0} gagné\n{1} perdu".format("Vous avez" if winner.get() == optionvars.humanPlayer else "La machine a", \
+                                               "La machine a" if winner.get() == optionvars.humanPlayer else "Vous avez",)
+    else:
+        endStr = "Le joueur {0} a gagné\nLe joueur {1} a perdu".format("BLANC" if winner.get() == -1 else "NOIR", \
+                                                                       "NOIR" if winner.get() == -1 else "BLANC")
+    Popup(text="La partie est terminée!", subtext=endStr, endGame=True, twoPlayers=optionvars.ai==0)
+def gameSaveName(event):
+    global winner
+    names = []
+    caller = event.widget
+    canvasName = caller.winfo_parent()
+    canvas = caller._nametowidget(canvasName)
+    for i in canvas.winfo_children():
+        if i.winfo_class() == "Entry":
+            names.append(i.get())
+    for i, n in enumerate(names):
+        cWinner = clamp(winner.get(), 0, 1)
+        _wins = 1 if i == cWinner else 0
+        _losses = 0 if i == cWinner else 1
+        _col = -1 if i == 0 else 1
+        configStats(name=n.lower(), games=1, wins=_wins, losses=_losses, ai=optionvars.ai, notai=1-optionvars.ai, \
+                    diff=optionvars.difficulty, col=_col)
 
 """----------------------------------------------BOUTONS-DES-OPTIONS-------------------------------------------------"""
 def optionsMode(event, value):
-    global ai
-    ai = value
+    optionvars.ai = value
     updateOptionsButtons()
 def optionsPlayer(event, value):
-    global humanPlayer
-    humanPlayer = value
+    optionvars.humanPlayer = value
     updateOptionsButtons()
 def optionsDifficulty(event, value):
-    global difficulty
-    difficulty = value
+    optionvars.difficulty = value
     updateOptionsButtons()
 def optionsGrid(event, value):
-    global gColours
-    gColours = value
-    if gColours == 0:
-        colour["white"] = "#%02X%02X%02X" % (255, 255, 130)
-        colour["black"] = "#%02X%02X%02X" % (160, 100, 0)
-    elif gColours == 1:
-        colour["white"] = "#%02X%02X%02X" % (150, 150, 200)
-        colour["black"] = "#%02X%02X%02X" % (50, 50, 200)
-    elif gColours == 2:
-        colour["white"] = "#%02X%02X%02X" % (65, 225, 10)
-        colour["black"] = "#%02X%02X%02X" % (180, 50, 176)
-    elif gColours == 3:
-        colour["white"] = "#%02X%02X%02X" % (21, 189, 123)
-        colour["black"] = "#%02X%02X%02X" % (46, 98, 0)
-    elif gColours == 4:
-        colour["white"] = "#%02X%02X%02X" % (99, 23, 125)
-        colour["black"] = "#%02X%02X%02X" % (0, 16, 0)
-    elif gColours == 5:
-        colour["white"] = "#%02X%02X%02X" % (180, 180, 180)
-        colour["black"] = "#%02X%02X%02X" % (75, 75, 75)
+    optionvars.gColours = value
+    colour["white"] = colour["white"+str(optionvars.gColours)]
+    colour["black"] = colour["black" + str(optionvars.gColours)]
     updateOptionsButtons()
     resetCaseColour()
     scoreBoardUpdateColours(gameScoreBoard)
 def optionsStats(event):
-    Popup(text="Êtes-vous sûrs de vouloir\nsupprimer les données?\n", \
+    Popup(text="Êtes-vous sûrs de vouloir\nsupprimer les données?", \
           textOption1="Oui", textOption2="Non", funcOption1=deleteStats, funcOption2=-1)
     updateOptionsButtons()
 def deleteStats(event):
+    os.remove("stats.pkl")
     print("deleteStats")
 
 """------------------------------------------------BOUTONS-DIVERS----------------------------------------------------"""
@@ -255,7 +302,6 @@ def layoutCreate(frame):
     currentFrame = frame
     if currentFrame == optionsFrame:
         updateOptionsButtons()
-
 def layoutDelete(frame=None, allBut=None):
     if frame != None:
         frame.pack_forget()
@@ -267,25 +313,24 @@ def layoutDelete(frame=None, allBut=None):
 
 """-----------------------------------------------AUTRES-FONCTIONS---------------------------------------------------"""
 h = lambda n: " " + "-" * n + " "
-
 def updateOptionsButtons():
     col = lambda condition: colour["green"] if condition else colour["blackPlayer"]
-    optionsModeChoice1.canvas.colour = col(ai == 0)
-    optionsModeChoice2.canvas.colour = col(ai == 1)
-    optionsPlayerChoice1.canvas.colour = col(humanPlayer == -1)
-    optionsPlayerChoice2.canvas.colour = col(humanPlayer == 1)
-    optionsDifficultyChoice1.canvas.colour = col(difficulty == 0)
-    optionsDifficultyChoice2.canvas.colour = col(difficulty == 1)
-    optionsDifficultyChoice3.canvas.colour = col(difficulty == 2)
-    optionsDifficultyChoice4.canvas.colour = col(difficulty == 3)
-    optionsDifficultyChoice5.canvas.colour = col(difficulty == 4)
-    optionsDifficultyChoice6.canvas.colour = col(difficulty == 5)
-    optionsGridChoice1.canvas.colour = col(gColours == 0)
-    optionsGridChoice2.canvas.colour = col(gColours == 1)
-    optionsGridChoice3.canvas.colour = col(gColours == 2)
-    optionsGridChoice4.canvas.colour = col(gColours == 3)
-    optionsGridChoice5.canvas.colour = col(gColours == 4)
-    optionsGridChoice6.canvas.colour = col(gColours == 5)
+    optionsModeChoice1.canvas.colour = col(optionvars.ai == 1)
+    optionsModeChoice2.canvas.colour = col(optionvars.ai == 0)
+    optionsPlayerChoice1.canvas.colour = col(optionvars.humanPlayer == -1)
+    optionsPlayerChoice2.canvas.colour = col(optionvars.humanPlayer == 1)
+    optionsDifficultyChoice1.canvas.colour = col(optionvars.difficulty == 0)
+    optionsDifficultyChoice2.canvas.colour = col(optionvars.difficulty == 1)
+    optionsDifficultyChoice3.canvas.colour = col(optionvars.difficulty == 2)
+    optionsDifficultyChoice4.canvas.colour = col(optionvars.difficulty == 3)
+    optionsDifficultyChoice5.canvas.colour = col(optionvars.difficulty == 4)
+    optionsDifficultyChoice6.canvas.colour = col(optionvars.difficulty == 5)
+    optionsGridChoice1.canvas.colour = col(optionvars.gColours == 0)
+    optionsGridChoice2.canvas.colour = col(optionvars.gColours == 1)
+    optionsGridChoice3.canvas.colour = col(optionvars.gColours == 2)
+    optionsGridChoice4.canvas.colour = col(optionvars.gColours == 3)
+    optionsGridChoice5.canvas.colour = col(optionvars.gColours == 4)
+    optionsGridChoice6.canvas.colour = col(optionvars.gColours == 5)
     optionsModeLabel.configure(fg=colour["black"])
     optionsPlayerLabel.configure(fg=colour["black"])
     optionsDifficultyLabel.configure(fg=colour["black"])
@@ -317,6 +362,25 @@ statsFrame.grid_propagate(False)
 """Tout"""
 currentFrame = 0
 mainFrames = [gameFrame, menuFrame, optionsFrame, statsFrame]
+
+"""-----------------------------------------------------MENU---------------------------------------------------------"""
+"""Espace Vide"""
+menuFrame.grid_rowconfigure(0, minsize=80)
+menuFrame.grid_columnconfigure(0, minsize=globalWidth)
+"""Logo"""
+menuLogo = Label(menuFrame, text="LE JEU DE DAMES", font=(mainFont, 70))
+menuLogo.grid(row=1)
+"""Espace Vide"""
+menuFrame.grid_rowconfigure(2, minsize=50)
+"""Boutons"""
+menuPlayButton = Button(menuFrame, text="JOUER", func=menuPlay, size=20, animationType=1)
+menuPlayButton.canvas.grid(row=3)
+menuOptionsButton = Button(menuFrame, text="PARAMÈTRES", func=menuOptions, size=20, animationType=1)
+menuOptionsButton.canvas.grid(row=4)
+menuStatsButton = Button(menuFrame, text="STATISTIQUES", func=menuStats, size=20, animationType=1)
+menuStatsButton.canvas.grid(row=5)
+menuQuitButton = Button(menuFrame, text="QUITTER", func=menuQuitPopup, size=20, animationType=1)
+menuQuitButton.canvas.grid(row=6)
 
 """-----------------------------------------------------GAME---------------------------------------------------------"""
 """Frames Secondaires"""
@@ -350,25 +414,6 @@ gameQuitText.canvas.grid(row=4, column=0)
 """Espace Vide"""
 gameSideFrame2.grid_rowconfigure(5, minsize=30)
 
-"""-----------------------------------------------------MENU---------------------------------------------------------"""
-"""Espace Vide"""
-menuFrame.grid_rowconfigure(0, minsize=80)
-menuFrame.grid_columnconfigure(0, minsize=globalWidth)
-"""Logo"""
-menuLogo = Label(menuFrame, text="LE JEU DE DAMES", font=(mainFont, 70))
-menuLogo.grid(row=1)
-"""Espace Vide"""
-menuFrame.grid_rowconfigure(2, minsize=50)
-"""Boutons"""
-menuPlayButton = Button(menuFrame, text="JOUER", func=lambda w=window:layoutCreate(gameFrame), size=20, animationType=1)
-menuPlayButton.canvas.grid(row=3)
-menuOptionsButton = Button(menuFrame, text="PARAMÈTRES", func=menuOptions, size=20, animationType=1)
-menuOptionsButton.canvas.grid(row=4)
-menuStatsButton = Button(menuFrame, text="STATISTIQUES", func=menuStats, size=20, animationType=1)
-menuStatsButton.canvas.grid(row=5)
-menuQuitButton = Button(menuFrame, text="QUITTER", func=menuQuitPopup, size=20, animationType=1)
-menuQuitButton.canvas.grid(row=6)
-
 """---------------------------------------------------OPTIONS--------------------------------------------------------"""
 """Frames Secondaires"""
 optionsSideFrame1 = Frame(optionsFrame, width=int(globalWidth/2), height=globalHeight)
@@ -385,10 +430,10 @@ optionsSideFrame1.grid_rowconfigure(1, minsize=30)
 """Options Mode de Jeu"""
 optionsModeLabel = Label(optionsSideFrame1, text=h(11)+"Mode de Jeu"+h(11), fg=colour["black"], font=(mainFont, 20))
 optionsModeLabel.grid(row=2, column=0, columnspan=6)
-optionsModeChoice1 = Button(optionsSideFrame1, text="AVEC LA MACHINE", func=lambda event, v=0: optionsMode(event, v), \
+optionsModeChoice1 = Button(optionsSideFrame1, text="AVEC LA MACHINE", func=lambda event, v=1: optionsMode(event, v), \
                             size=15, animationType=1)
 optionsModeChoice1.canvas.grid(row=3, column=0, columnspan=6)
-optionsModeChoice2 = Button(optionsSideFrame1, text="À DEUX JOUEURS", func=lambda event, v=1: optionsMode(event, v), \
+optionsModeChoice2 = Button(optionsSideFrame1, text="À DEUX JOUEURS", func=lambda event, v=0: optionsMode(event, v), \
                             size=15, animationType=1)
 optionsModeChoice2.canvas.grid(row=4, column=0, columnspan=6)
 optionsSideFrame1.grid_rowconfigure(5, minsize=15)
@@ -460,6 +505,117 @@ optionsSideFrame2.grid_rowconfigure(5, minsize=20)
 optionsPreviewChoice1 = BoardPreview(optionsSideFrame2)
 optionsPreviewChoice1.frame.grid(row=6)
 
+"""-----------------------------------------------------STATS--------------------------------------------------------"""
+"""Variables de taille"""
+statsTopFrameHeight = 50
+statsTopFrameDistance = 25
+statsTopFrameTotalHeight = statsTopFrameHeight + statsTopFrameHeight
+statsTableLineWidth = 3
+statsTableHeight = globalHeight-statsTopFrameTotalHeight
+statsTableHeaderSize = 50
+statsTableSize = [0 for i in range(6)]
+statsTableSize[0] = 275
+statsTableSize[1] = 75
+statsTableSize[2] = 100
+statsTableSize[3] = 150
+statsTableSize[4] = 150
+statsTableSize[5] = 50
+statsTableHeaders = ["" for i in range(6)]
+statsTableHeaders[0] = "NOMS DES JOUEURS"
+statsTableHeaders[1] = "TOP"
+statsTableHeaders[2] = "PARTIES"
+statsTableHeaders[3] = "VICTOIRES"
+statsTableHeaders[4] = "DÉFAITES"
+statsTableHeaders[5] = "+"
+"""Frames Secondaires"""
+statsTopFrame = Frame(statsFrame)
+statsTopFrame.grid(row=0)
+statsFrame.grid_rowconfigure(1, minsize=statsTopFrameDistance)
+statsTable = Canvas(statsFrame, width=globalWidth, height=globalHeight-statsTopFrameTotalHeight, bg="white")
+statsTable.grid(row=2)
+"""Titre"""
+statsTitle = Label(statsTopFrame, text="STATISTIQUES", font=(mainFont, 25), height=1)
+statsTitle.grid(row=0, column=0)
+statsTopFrame.grid_rowconfigure(0, minsize=statsTopFrameHeight)
+statsTopFrame.grid_columnconfigure(0, minsize=int(globalWidth/2))
+"""Barre de Recherche"""
+statsSearch = Entry(statsTopFrame, font=(mainFont, 15), width=int(globalWidth/30), \
+                    highlightbackground=mergeColour(colour["blackPlayer"], colour["whitePlayer"], 0), \
+                    background=mergeColour(colour["blackPlayer"], colour["whitePlayer"], 0.925), \
+                    highlightthickness=2, relief=FLAT)
+statsSearch.grid(row=0, column=1)
+statsTopFrame.grid_rowconfigure(0, minsize=statsTopFrameHeight)
+statsTopFrame.grid_columnconfigure(1, minsize=int(globalWidth/2))
+"""Lignes du Tableau"""
+statsTable.create_line(statsTableLineWidth/2, statsTableLineWidth/2, \
+                       statsTableLineWidth/2, statsTableHeight-statsTableLineWidth/2+2, \
+                       globalWidth-statsTableLineWidth/2, statsTableHeight-statsTableLineWidth/2+2,\
+                       globalWidth-statsTableLineWidth/2, statsTableLineWidth/2, \
+                       statsTableLineWidth/2, statsTableLineWidth/2, \
+                       width=statsTableLineWidth)
+statsTable.create_line(0, statsTableHeaderSize, globalWidth, statsTableHeaderSize, \
+                       width=statsTableLineWidth/2)
+for i in range(6):
+    statsTable.create_line(listSum(statsTableSize, 0, i), 0, listSum(statsTableSize, 0, i), statsTableHeaderSize, \
+                           width=statsTableLineWidth/2)
+"""Titres du Tableau"""
+for i in range(6):
+    xx = listSum(statsTableSize, 0, i) - statsTableSize[i]/2
+    tt = statsTableHeaders[i]
+    ww = statsTableSize[i]
+    statsTable.create_text(xx, statsTableHeaderSize/2, text=tt, width=ww, font=(mainFont, 14), fill= colour["black"])
+"""Mise en place d'une scrollbar (liée à un canevas contenant une frame contenant un autre canevas et des boutons"""
+statsTableHardCodedValues = (3, 1.75, 4, 6, 7, 6.5)
+statsTableFrameSize = (globalWidth-statsTableHardCodedValues[0]*statsTableLineWidth-1, \
+                       statsTableHeight-statsTableHeaderSize-statsTableHardCodedValues[1]*statsTableLineWidth)
+statsTableCanvas = Canvas(statsTable, bd=0, width=statsTableFrameSize[0], height=statsTableFrameSize[1], bg="red")
+statsTableFrame = Frame(statsTableCanvas, width=statsTableFrameSize[0], height=statsTableFrameSize[1])
+statsTableCanvas.create_window(0, 0, window=statsTableFrame)
+statsTableCanvas.place(x=statsTableLineWidth+1, y=statsTableHeaderSize+1)
+yScrollSizeChange = lambda event, c=statsTableCanvas: \
+                    c.configure(scrollregion=(c.bbox("all")[0], c.bbox("all")[1]+statsTableHardCodedValues[2], \
+                                              c.bbox("all")[2], c.bbox("all")[3]-statsTableHardCodedValues[3]))
+statsTableFrame.bind("<Configure>", yScrollSizeChange)
+"""Contenu du Tableau"""
+statsTableEntries = 0
+statsTableEntryHeight = 30
+rowNumber = 0
+for i in stats.keys():
+    statsTableEntries += 1
+if statsTableEntries < statsTableFrameSize[1]//statsTableEntryHeight:
+    statsTableEntries = int(statsTableFrameSize[1]//statsTableEntryHeight)
+statsTableContentHeight = statsTableEntries * statsTableEntryHeight
+statsTableFrame.grid_columnconfigure(0, minsize=listSum(statsTableSize, 0, 4)-statsTableHardCodedValues[4])
+statsTableFrame.grid_rowconfigure(1, minsize=statsTableEntryHeight)
+statsTableFrameC = Canvas(statsTableFrame, bd=0, width=listSum(statsTableSize, 0, 4)-statsTableHardCodedValues[4], \
+                          height=statsTableContentHeight, bg="blue")
+statsTableFrameC.grid(row=0, column=0, rowspan=statsTableEntries)
+for i in range(statsTableEntries - rowNumber + 1):
+    statsTableFrameC.grid_rowconfigure(i, minsize=statsTableEntryHeight)
+for i in stats.keys():
+    Label(statsTableFrameC, text=i.upper(), font=(mainFont, 15)).grid(row=rowNumber, column=0)
+    Label(statsTableFrameC, text=stats[i]["games"], font=(mainFont, 15)).grid(row=rowNumber, column=2)
+    Label(statsTableFrameC, text=stats[i]["wins"], font=(mainFont, 15)).grid(row=rowNumber, column=3)
+    Label(statsTableFrameC, text=stats[i]["losses"], font=(mainFont, 15)).grid(row=rowNumber, column=4)
+    rowNumber += 1
+if rowNumber < statsTableEntries:
+    for i in range(statsTableEntries-rowNumber+1):
+        statsTableFrameC.grid_rowconfigure(rowNumber+i, minsize=statsTableEntryHeight)
+for i in range(6):
+    statsTableFrameC.create_line(listSum(statsTableSize, 0, i)-statsTableHardCodedValues[5], 0, \
+                                 listSum(statsTableSize, 0, i)-statsTableHardCodedValues[5], statsTableContentHeight+1000, \
+                                 width=statsTableLineWidth/2)
+    if i in range(5):
+        statsTableFrameC.grid_columnconfigure(i, minsize=statsTableSize[i])
+
+scrollBarStyle = ttk.Style()
+scrollBarStyle.theme_use('clam')
+scrollBarStyle.configure("Vertical.TScrollbar", background="white", darkcolor="black", lightcolor="black", \
+                         troughcolor="white", bordercolor="white")
+yScrollBar = ttk.Scrollbar(statsTableCanvas,orient=VERTICAL,command=statsTableCanvas.yview,style="Vertical.TScrollbar")
+statsTableCanvas.configure(yscrollcommand=yScrollBar.set)
+yScrollBar.place(x=2, y=0, relheight=1.0)
+statsTableCanvas.yview_moveto(0.0)
 """-----------------------------------------------------MISC---------------------------------------------------------"""
 """Bouton d'aide"""
 infoIcon = Button(window, text="?", func=info, size=20, animationType=1, tag="bold")
