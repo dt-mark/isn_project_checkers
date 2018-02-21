@@ -1,12 +1,16 @@
 from tkinter import *
 from threading import *
 from winsound import *
-import webbrowser, os
+import webbrowser, random, time, os
 
 from constants import *
 from globals import *
 from functions import *
 from layout import *
+from stats import *
+import optionvars
+
+n = 0
 
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------CLASSES-------------------------------------------------------"""
@@ -36,7 +40,6 @@ class Player:
         self.canvas.place(x=self.x, y=self.y)
         self.canvas.bind("<1>", lambda event, x=_x, y=_y: click(event, x, y))
         self.update()
-
     def changePosition(self, _x, _y):
         global players
         if self.score == 0:
@@ -51,7 +54,6 @@ class Player:
             self.x = _x
             self.y = _y
         Misc.lift(self.canvas, aboveThis=None)
-
     def update(self):
         speed = 0.2 * refreshRate * 0.1 if self.score == 0 else 0.15 * refreshRate * 0.1
         self.xTo = lerp(self.xTo, self.x, speed)
@@ -110,7 +112,6 @@ class Sound(Thread):
         Thread.__init__(self)
         self.name = _name
         PlaySound(self.name, SND_FILENAME | SND_ASYNC)
-
     def run(self):
         # Get lock to synchronize threads
         threadLock.acquire()
@@ -148,6 +149,7 @@ def resetGame():
     selectedPlayer, player, nothingHappened, highlightStuck = -1, -1, 0, False
     scorePlayer = {-1: [0 for i in range(gSize * 2 + 1)], 1: [0 for i in range(gSize * 2 + 1)]}
     Board(gameBoard, gSize, bSize)
+    print(player)
     restart.set(0)
 
 """Fonction qui détermine si un joueur est coincé"""
@@ -169,34 +171,40 @@ def isBlocked(ptype):
         return False
 
 """Fonction qui détermine s'il reste des joueurs"""
-def isAlive(ptype):
+def isDead(ptype):
     global scoreDisplay
-    return ((gSize * 2) - (int(scoreDisplay[ptype].get()) - 1) != 0)
+    return ((gSize * 2) - (int(scoreDisplay[ptype].get()) - 1) == 0)
 
 """Fonction qui check s'il y a eu victoire ou pas"""
 def victory():
-    global nothingHappened
+    global nothingHappened, winner
     if nothingHappened >= 25:
         print("DRAW, no one won, no one lost")
     for _player in [-1, 1]:
-        if isBlocked(_player) or not isAlive(_player):
-            print("{} has lost".format("WHITE player" if _player == -1 else "BLACK player"))
-            print("{} has won".format("BLACK player" if _player == -1 else "WHITE player"))
+        if isBlocked(_player) or isDead(_player):
+            winner.set(-_player)
+            endStr = "Le joueur {0} a gagné\nLe joueur {1} a perdu". format("BLANC" if winner.get() == -1 else "NOIR", \
+                                                                            "NOIR" if winner.get() == -1 else "BLANC")
+            Popup(text="La partie est terminée!", subtext=endStr, endGame=True, twoPlayers=optionvars.ai==0)
             break
 
 """Fonction qui check si on un joueur peut en manger un autre"""
 def canMove():
-    global player, players, onePlayerCanEat
+    global player, players, onePlayerCanEat, onePlayerCanMove
     onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
+    onePlayerCanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
     for be in [-1, -2]:
         for _player in [-1, 1]:
             for pi in range(gSize):
                 for pj in range(gSize):
                     if players[pi][pj] != -1 and players[pi][pj].type == _player:
                         if highlight(pi, pj, _player, behaviour=be):
-                            if be == -1:
-                                if _player == player:
+                            if _player == player:
+                                if be == -1:
                                     onePlayerCanEat[_player].append((pi, pj))
+                                    onePlayerCanMove[_player].append((pi, pj))
+                                if be == -2:
+                                    onePlayerCanMove[_player].append((pi, pj))
                             if c[pi][pj] != colour["green"]:
                                 if _player == player:
                                     caseColour(pi, pj, colour["red"])
@@ -213,6 +221,7 @@ def canMove():
 """Fonction qui check où on peut aller"""
 def highlight(i, j, player, behaviour=1):
     global selectedPlayer, highlightStuck, onePlayerCanEat
+    possibleMoves = []
     direction1 = [player]
     if players[i][j].super: direction1.append(-player)
     direction2 = [-1, 1]
@@ -244,9 +253,12 @@ def highlight(i, j, player, behaviour=1):
                         highlightStuck = True
                         selectedPlayer = players[i][j]
                         caseColour(i, j, colour["green"])
-                        highlight(i, j, player, behaviour=1)
+                        if player == optionvars.humanPlayer:
+                            highlight(i, j, player, behaviour=1)
                     if behaviour == -1:
                         return True
+                    if behaviour == -3:
+                        possibleMoves.append((ni(2), nj(2)))
                 else:
                     continue
             elif behaviour == 0:
@@ -255,11 +267,14 @@ def highlight(i, j, player, behaviour=1):
             if samePlayerCondition: continue
             # Si la case est vide
             if empty(ni(1), nj(1)):
-                if behaviour >= 0 and onePlayerCanEat[player] == [(-1, -1)] \
-                        and not highlightStuck:
+                if behaviour >= 0 and onePlayerCanEat[player] == [(-1, -1)] and not highlightStuck:
                     caseColour(ni(1), nj(1), colour["green"])
                 if not samePlayerCondition and behaviour == -2:
                     return True
+                if behaviour == -3 and onePlayerCanEat[player] == [(-1, -1)] and not highlightStuck:
+                    possibleMoves.append((ni(1), nj(1)))
+    if behaviour == -3:
+        return possibleMoves
     return False
 
 """Fonction qui permet de manger un joueur"""
@@ -307,11 +322,13 @@ def eat(i, j, player, playerMovement):
     eatenPlayer.canvas.destroy()
     players[eatenPlayerX][eatenPlayerY] = -1
     # On check si on peut enchainer avec un combo
+    #print(players[i][j])
     highlight(i, j, player, behaviour=0)
 
 """Fonction Principale"""
 def click(event, i, j):
-    global player, selectedPlayer, highlightStuck, onePlayerCanEat, nothingHappened
+    global player, selectedPlayer, highlightStuck, onePlayerCanEat, nothingHappened, onePlayerCanMove, n
+    if player == -optionvars.humanPlayer and optionvars.ai == 1: return
     # Si on clique sur un joueur,
     if players[i][j] != -1 and players[i][j] != selectedPlayer \
             and players[i][j].type == player:
@@ -341,9 +358,13 @@ def click(event, i, j):
             # On change de joueur
             if (highlightStuck == False):
                 player = -player
+                if optionvars.ai == 1 and player == -optionvars.humanPlayer:
+                    n +=1
+                    #print("running",n)
+                    aiMove()
                 turn.set("c'est au joueur {0} de jouer".format("BLANC" if player == -1 else "NOIR"))
             # Si on est arrivés au bout de la grille,
-            endOfGrid = ((j == 0 and player == 1) or (j == gSize - 1 and player == -1)) and players[i][j].super == False
+            endOfGrid = ((j == 0 and player == -1) or (j == gSize - 1 and player == 1)) and players[i][j].super == False
             if endOfGrid:
                 players[i][j].super = True
                 # players[i][j].col2 = players[i][j].col1
@@ -367,6 +388,52 @@ def click(event, i, j):
             selectedPlayer = -1
             Sound(sound["deselect"])
     victory()
+
+"""Fonction qui détermine le mouvement de la machine"""
+def aiMove():
+    global difficulty, onePlayerCanMove, player, highlightStuck
+    aiPlayer = -optionvars.humanPlayer
+    if optionvars.difficulty == 0:
+        if (onePlayerCanMove[-optionvars.humanPlayer]) == [(-1, -1)]:
+            window.after(refreshRate, aiMove)
+        else:
+            randomPlayerToMove = random.choice(onePlayerCanMove[aiPlayer][1:])
+            playerMove = players[randomPlayerToMove[0]][randomPlayerToMove[1]]
+            xDif = abs(playerMove.xTo - playerMove.x)
+            yDif = abs(playerMove.yTo - playerMove.y)
+            notMoving = xDif < 0.01 and yDif < 0.01
+            possibleMoves = highlight(randomPlayerToMove[0], randomPlayerToMove[1], aiPlayer, behaviour=-3)
+            targetMove = random.choice(possibleMoves)
+            playerMovement = movementVector(pixelToCell(playerMove.x), \
+                                            pixelToCell(playerMove.y), targetMove[0], targetMove[1])
+            if notMoving:
+                playerMove.changePosition(targetMove[0], targetMove[1])
+                highlightStuck = False
+                if playerMovement[2] > sqrt(2):
+                    eat(targetMove[0], targetMove[1], player, playerMovement)
+                    Sound(sound["eat"])
+                    nothingHappened = 0
+            # Si on est arrivés au bout de la grille,
+            i, j = targetMove[0], targetMove[1]
+            endOfGrid = ((j == 0 and player == -1) or (j == gSize - 1 and player == 1)) and players[i][j].super == False
+            if endOfGrid:
+                players[i][j].super = True
+                # players[i][j].col2 = players[i][j].col1
+                players[i][j].col2 = colour["gold"]
+                players[i][j].canvas.create_polygon(playerCanvasSize / 2, 0 + 4, \
+                                                    playerCanvasSize - 4, playerCanvasSize / 2, \
+                                                    playerCanvasSize / 2, playerCanvasSize - 4, \
+                                                    0 + 4, playerCanvasSize / 2, \
+                                                    fill=players[i][j].col1, \
+                                                    outline=players[i][j].col2, \
+                                                    width=4)
+                Sound(sound["super"])
+                nothingHappened = 0
+    if highlightStuck == False:
+        player = -player
+    if len(onePlayerCanMove[aiPlayer]) == 2 and highlightStuck == True:
+        window.after(refreshRate, aiMove)
+    resetCaseColour()
 
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------EXECUTE-------------------------------------------------------"""
