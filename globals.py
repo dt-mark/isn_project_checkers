@@ -12,6 +12,7 @@ selectedPlayer = -1
 players = [[-1 for i in range(gSize + 1)] for j in range(gSize + 1)]
 
 onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
+onePlayerCanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
 
 scoreDisplay = {-1: StringVar(), 1: StringVar()}
 scoreDisplay[-1].set(str(gSize * 2))
@@ -24,10 +25,12 @@ turn.set("c'est au joueur {0} de jouer".format("BLANC" if player == -1 else "NOI
 
 highlightStuck = False
 nothingHappened = 0
+
+winner = IntVar()
+winner.set(-1)
+
 restart = IntVar()
 restart.set(0)
-
-
 def reset():
     global scoreDisplay
     restart.set(1)
