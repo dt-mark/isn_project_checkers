@@ -1,4 +1,7 @@
-import pickle
+import pickle, copy
+
+emptyDic = {"games":0, "wins":0, "losses":0, "ai":0, "notai":0, "diff":0, "col":0}
+emptyStats = {"": emptyDic}
 
 def save_obj(obj, name):
     with open(name + '.pkl', 'wb') as f:
@@ -9,25 +12,26 @@ def load_obj(name):
         return pickle.load(f)
 
 def configStats(name="", games=0, wins=0, losses=0, ai=0, notai=0, diff=0, col=0):
-    global stats
-    default = dic = {"games":0, "wins":0, "losses":0, "ai":0, "notai":0, "diff":0, "col":0}
-    dic = stats.get(name, default)
-    dic["games"] += games
-    dic["wins"] += wins
-    dic["losses"] += losses
-    dic["ai"] += ai
-    dic["notai"] += notai
-    dic["diff"] += diff
-    dic["col"] += col
-    stats[name] = dic
+    global stats, emptyDic
+    default = copy.deepcopy(emptyDic)
+    stats.get(name, default)["games"] += games
+    stats.get(name, default)["wins"] += wins
+    stats.get(name, default)["losses"] += losses
+    stats.get(name, default)["ai"] += ai
+    stats.get(name, default)["notai"] += notai
+    stats.get(name, default)["diff"] += diff
+    stats.get(name, default)["col"] += col
+    stats[name] = stats.get(name, default)
+    print(stats)
     save_obj(stats, "stats")
 
 def readStats():
-    global stats
+    global stats, emptyStats
+    try:
+        stats = load_obj("stats")
+    except:
+        stats = emptyStats
+        save_obj(stats, "stats")
     return stats
 
-try:
-    stats = load_obj("stats")
-except:
-    stats = {}
-    save_obj(stats, "stats")
+stats = readStats()
