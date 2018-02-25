@@ -1,5 +1,7 @@
 from tkinter import *
 from tkinter import ttk
+from collections import OrderedDict
+import os
 
 from constants import *
 from globals import *
@@ -19,7 +21,8 @@ class Button:
         self.animationType = animationType
         self.refreshRate = 10
         self.text, self.size, self.func = text, size, func
-        self.ww, self.hh = (len(self.text) + 3) * size, 1.85 * size
+        extraSpace = 3 if animationType == 0 else 1
+        self.ww, self.hh = (len(self.text) + extraSpace) * size, 1.85 * size
         self.canvas = Canvas(frame, width=self.ww, height=self.hh - 3)
         self.canvas.label = self.canvas.create_text(self.ww / 2, self.hh / 2, text=self.text)
         self.canvas.arrowSpace = 0
@@ -125,7 +128,7 @@ class Popup:
                 self.entry2.grid(row=4, column=0, columnspan=2)
             okFunction = lambda event, g=gameSaveName: self.acceptPopup(event, g)
             self.canvas.grid_rowconfigure(5, minsize=15)
-            self.button = Button(self.canvas, text="OK", func= okFunction, size=15, animationType=1)
+            self.button = Button(self.canvas, text="OK", func=okFunction, size=15, animationType=1)
             self.button.canvas.grid(row=6, column=0, columnspan=2)
         self.canvas.pack(padx=15, pady=15, fill="both")
         self.top.resizable(width=False, height=False)
@@ -251,6 +254,7 @@ def gameSaveName(event):
     for i in canvas.winfo_children():
         if i.winfo_class() == "Entry":
             names.append(i.get())
+    print(names[0], names[1])
     for i, n in enumerate(names):
         cWinner = clamp(winner.get(), 0, 1)
         _wins = 1 if i == cWinner else 0
@@ -295,13 +299,13 @@ def layoutCreate(frame):
     frame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
     layoutDelete(frame=None, allBut=frame)
     if frame == optionsFrame or frame == statsFrame:
-        backIcon.canvas.place(relx=0, x=0, y=20, anchor=NW)
+        backIcon.canvas.place(relx=0, x=20, y=20, anchor=NW)
     else:
         backIcon.canvas.place_forget()
     global currentFrame
     currentFrame = frame
-    if currentFrame == optionsFrame:
-        updateOptionsButtons()
+    if currentFrame == optionsFrame: updateOptionsButtons()
+    if currentFrame == statsFrame: updateStatsValues()
 def layoutDelete(frame=None, allBut=None):
     if frame != None:
         frame.pack_forget()
@@ -341,6 +345,53 @@ def updateOptionsButtons():
         for j in range(gSize + 1):
             if case(i, j): optionsPreviewChoice1.g[i][j].configure(bg=colour["black"])
             else: optionsPreviewChoice1.g[i][j].configure(bg=colour["white"])
+def updateStatsValues():
+    stats = readStats()
+    tempSortedStats = {}
+    for i in stats.keys():
+        tempSortedStats[i] = stats[i]["wins"]
+    tempSortedStats = OrderedDict(reversed(sorted(tempSortedStats.items(), key=lambda t: t[1])))
+    sortedStats = {}
+    rowNumber = 0
+    for i in tempSortedStats.keys():
+        sortedStats[i] = OrderedDict(stats[i])
+        if i != "":
+            statsNames[rowNumber] = Label(statsTableFrameC, text=cutString(i.upper(), 18), font=(mainFont, 15))
+            statsRanks[rowNumber] = Label(statsTableFrameC, text=str(rowNumber + 1), font=(mainFont, 15))
+            statsGames[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["games"], font=(mainFont, 15))
+            statsWins[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["wins"], font=(mainFont, 15))
+            statsLosses[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["losses"], font=(mainFont, 15))
+            if sortedStats[i]["games"] != 0:
+                winPercentage[rowNumber] = str(int((sortedStats[i]["wins"] / sortedStats[i]["games"]) * 100)) + "%"
+                lossPercentage[rowNumber] = str(int((sortedStats[i]["losses"] / sortedStats[i]["games"]) * 100)) + "%"
+            else:
+                winPercentage[rowNumber] = "0%"
+                lossPercentage[rowNumber] = "0%"
+            statsWinsP[rowNumber] = Label(statsTableFrameC, text=winPercentage[rowNumber], font=(mainFont, 15))
+            statsLossesP[rowNumber] = Label(statsTableFrameC, text=lossPercentage[rowNumber], font=(mainFont, 15))
+            buttonXOffset[rowNumber] = listSum(statsTableSize,0,4)-statsTableHardCodedValues[4]+statsTableSize[5]/2-20
+            buttonYOffset[rowNumber] = (2 * rowNumber + 1) * (statsTableEntryHeight / 2) - 20
+            moreButton[rowNumber] = Button(statsTableFrame, text=">", func=gameQuitPopup, size=20, animationType=1)
+            statsNames[rowNumber].grid(row=rowNumber, column=0)
+            statsRanks[rowNumber].grid(row=rowNumber, column=1)
+            statsGames[rowNumber].grid(row=rowNumber, column=2)
+            statsWins[rowNumber].grid(row=rowNumber, column=3)
+            statsWinsP[rowNumber].grid(row=rowNumber, column=4)
+            statsLosses[rowNumber].grid(row=rowNumber, column=5)
+            statsLossesP[rowNumber].grid(row=rowNumber, column=6)
+            moreButton[rowNumber].canvas.place(x=buttonXOffset[rowNumber], y=buttonYOffset[rowNumber])
+            rowNumber += 1
+    if stats == emptyStats: noStatsValues()
+def noStatsValues():
+    for row in range(len(statsNames)):
+        if statsNames[row] != "": statsNames[row].configure(text="")
+        if statsRanks[row] != "": statsRanks[row].configure(text="")
+        if statsGames[row] != "": statsGames[row].configure(text="")
+        if statsWins[row] != "": statsWins[row].configure(text="")
+        if statsWinsP[row] != "": statsWinsP[row].configure(text="")
+        if statsLosses[row] != "": statsLosses[row].configure(text="")
+        if statsLossesP[row] != "": statsLossesP[row].configure(text="")
+        if moreButton[row] != "": moreButton[row].canvas.place_forget()
 
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------LAYOUT--------------------------------------------------------"""
@@ -564,50 +615,15 @@ for i in range(6):
     tt = statsTableHeaders[i]
     ww = statsTableSize[i]
     statsTable.create_text(xx, statsTableHeaderSize/2, text=tt, width=ww, font=(mainFont, 14), fill= colour["black"])
-"""Mise en place d'une scrollbar (liée à un canevas contenant une frame contenant un autre canevas et des boutons"""
-statsTableHardCodedValues = (3, 1.75, 4, 6, 7, 6.5)
+"""Canevas Contenant une Frame (pour le contenu du tableau)"""
+statsTableHardCodedValues = (3, 1.75, 4, 6, 7, 4.5+1)
 statsTableFrameSize = (globalWidth-statsTableHardCodedValues[0]*statsTableLineWidth-1, \
                        statsTableHeight-statsTableHeaderSize-statsTableHardCodedValues[1]*statsTableLineWidth)
-statsTableCanvas = Canvas(statsTable, bd=0, width=statsTableFrameSize[0], height=statsTableFrameSize[1], bg="red")
+statsTableCanvas = Canvas(statsTable, bd=0, width=statsTableFrameSize[0], height=statsTableFrameSize[1])
 statsTableFrame = Frame(statsTableCanvas, width=statsTableFrameSize[0], height=statsTableFrameSize[1])
-statsTableCanvas.create_window(0, 0, window=statsTableFrame)
+statsTableCanvas.create_window(0, 0, window=statsTableFrame, anchor=NW)
 statsTableCanvas.place(x=statsTableLineWidth+1, y=statsTableHeaderSize+1)
-yScrollSizeChange = lambda event, c=statsTableCanvas: \
-                    c.configure(scrollregion=(c.bbox("all")[0], c.bbox("all")[1]+statsTableHardCodedValues[2], \
-                                              c.bbox("all")[2], c.bbox("all")[3]-statsTableHardCodedValues[3]))
-statsTableFrame.bind("<Configure>", yScrollSizeChange)
-"""Contenu du Tableau"""
-statsTableEntries = 0
-statsTableEntryHeight = 30
-rowNumber = 0
-for i in stats.keys():
-    statsTableEntries += 1
-if statsTableEntries < statsTableFrameSize[1]//statsTableEntryHeight:
-    statsTableEntries = int(statsTableFrameSize[1]//statsTableEntryHeight)
-statsTableContentHeight = statsTableEntries * statsTableEntryHeight
-statsTableFrame.grid_columnconfigure(0, minsize=listSum(statsTableSize, 0, 4)-statsTableHardCodedValues[4])
-statsTableFrame.grid_rowconfigure(1, minsize=statsTableEntryHeight)
-statsTableFrameC = Canvas(statsTableFrame, bd=0, width=listSum(statsTableSize, 0, 4)-statsTableHardCodedValues[4], \
-                          height=statsTableContentHeight, bg="blue")
-statsTableFrameC.grid(row=0, column=0, rowspan=statsTableEntries)
-for i in range(statsTableEntries - rowNumber + 1):
-    statsTableFrameC.grid_rowconfigure(i, minsize=statsTableEntryHeight)
-for i in stats.keys():
-    Label(statsTableFrameC, text=i.upper(), font=(mainFont, 15)).grid(row=rowNumber, column=0)
-    Label(statsTableFrameC, text=stats[i]["games"], font=(mainFont, 15)).grid(row=rowNumber, column=2)
-    Label(statsTableFrameC, text=stats[i]["wins"], font=(mainFont, 15)).grid(row=rowNumber, column=3)
-    Label(statsTableFrameC, text=stats[i]["losses"], font=(mainFont, 15)).grid(row=rowNumber, column=4)
-    rowNumber += 1
-if rowNumber < statsTableEntries:
-    for i in range(statsTableEntries-rowNumber+1):
-        statsTableFrameC.grid_rowconfigure(rowNumber+i, minsize=statsTableEntryHeight)
-for i in range(6):
-    statsTableFrameC.create_line(listSum(statsTableSize, 0, i)-statsTableHardCodedValues[5], 0, \
-                                 listSum(statsTableSize, 0, i)-statsTableHardCodedValues[5], statsTableContentHeight+1000, \
-                                 width=statsTableLineWidth/2)
-    if i in range(5):
-        statsTableFrameC.grid_columnconfigure(i, minsize=statsTableSize[i])
-
+"""ScrollBar"""
 scrollBarStyle = ttk.Style()
 scrollBarStyle.theme_use('clam')
 scrollBarStyle.configure("Vertical.TScrollbar", background="white", darkcolor="black", lightcolor="black", \
@@ -616,10 +632,60 @@ yScrollBar = ttk.Scrollbar(statsTableCanvas,orient=VERTICAL,command=statsTableCa
 statsTableCanvas.configure(yscrollcommand=yScrollBar.set)
 yScrollBar.place(x=2, y=0, relheight=1.0)
 statsTableCanvas.yview_moveto(0.0)
+yScrollSizeChange = lambda event, c=statsTableCanvas: \
+                    c.configure(scrollregion=(c.bbox("all")[0], c.bbox("all")[1]+statsTableHardCodedValues[2], \
+                                              c.bbox("all")[2], c.bbox("all")[3]-statsTableHardCodedValues[3]))
+statsTableFrame.bind("<Configure>", yScrollSizeChange)
+statsTableCanvas.configure(scrollregion=(statsTableCanvas.bbox("all")[0], \
+                                         statsTableCanvas.bbox("all")[1]+statsTableHardCodedValues[2], \
+                                         statsTableCanvas.bbox("all")[2], \
+                                         statsTableCanvas.bbox("all")[3]-statsTableHardCodedValues[3]))
+"""Contenu de la Frame (donc le contenu du tableau)"""
+statsTableEntries = len(stats.keys())
+statsTableEntryHeight = 38
+statsTableContentHeight = statsTableEntries * statsTableEntryHeight
+while statsTableContentHeight < statsTableFrameSize[1]:
+    statsTableEntries += 1
+    statsTableContentHeight = statsTableEntries * statsTableEntryHeight
+statsTableFrame.configure(height=statsTableContentHeight)
+statsTableFrameC = Canvas(statsTableFrame, bd=0, width=listSum(statsTableSize, 0, 4), height=statsTableContentHeight)
+statsTableFrameC.place(x=-statsTableHardCodedValues[5], y=0)
+for i in range(6):
+    statsTableFrameC.create_line(listSum(statsTableSize, 0, i), 0, \
+                                 listSum(statsTableSize, 0, i), statsTableContentHeight+1000, \
+                                 width=statsTableLineWidth/2)
+statsTableFrameC.create_line(listSum(statsTableSize, 0, 2)+statsTableSize[3]/2, 0, \
+                             listSum(statsTableSize, 0, 2)+statsTableSize[3]/2, statsTableContentHeight+1000, \
+                             width=statsTableLineWidth/2)
+statsTableFrameC.create_line(listSum(statsTableSize, 0, 3)+statsTableSize[4]/2, 0, \
+                             listSum(statsTableSize, 0, 3)+statsTableSize[4]/2,
+                             statsTableContentHeight + 1000, \
+                             width=statsTableLineWidth / 2)
+for i in range(8):
+    if isBetween(i, 0, 2): statsTableFrameC.grid_columnconfigure(i, minsize=statsTableSize[i])
+    if isBetween(i, 3, 4): statsTableFrameC.grid_columnconfigure(i, minsize=statsTableSize[3]/2)
+    if isBetween(i, 5, 6): statsTableFrameC.grid_columnconfigure(i, minsize=statsTableSize[4]/2)
+    if isBetween(i, 7, 7): statsTableFrameC.grid_columnconfigure(i, minsize=statsTableHardCodedValues[4])
+for i in range(statsTableEntries):
+    statsTableFrameC.grid_rowconfigure(i, minsize=statsTableEntryHeight)
+statsNames = ["" for i in range(1000)]
+statsRanks = ["" for i in range(1000)]
+statsGames = ["" for i in range(1000)]
+statsWins = ["" for i in range(1000)]
+winPercentage = ["" for i in range(1000)]
+statsWinsP = ["" for i in range(1000)]
+statsLosses = ["" for i in range(1000)]
+lossPercentage = ["" for i in range(1000)]
+statsLossesP = ["" for i in range(1000)]
+buttonXOffset = [0 for i in range(1000)]
+buttonYOffset = [0 for i in range(1000)]
+moreButton = ["" for i in range(1000)]
+updateStatsValues()
+
 """-----------------------------------------------------MISC---------------------------------------------------------"""
 """Bouton d'aide"""
 infoIcon = Button(window, text="?", func=info, size=20, animationType=1, tag="bold")
-infoIcon.canvas.place(relx=1, x=0, y=20, anchor=NE)
+infoIcon.canvas.place(relx=1, x=-20, y=20, anchor=NE)
 """Bouton de retour"""
 backIcon = Button(window, text="<", func=back, size=20, animationType=1, tag="bold")
-backIcon.canvas.place(relx=0, x=0, y=20, anchor=NW)
+backIcon.canvas.place(relx=0, x=20, y=20, anchor=NW)
