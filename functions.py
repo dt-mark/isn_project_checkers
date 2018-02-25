@@ -109,6 +109,13 @@ def intToString(integer):
     else:
         return str(integer)
 
+"""Fonction qui coupe un string trop long à N caractères"""
+def cutString(str, c):
+    if len(str) >= c:
+        return str[:c] + "..."
+    else:
+        return str
+
 """Fonction qui convertit des coordonnées d'index de tableau en pixels et vice verse"""
 def pixelToCell(x):
     return (x // bSize)
