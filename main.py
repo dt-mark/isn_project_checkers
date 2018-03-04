@@ -4,13 +4,11 @@ from winsound import *
 import webbrowser, random, time, os
 
 from constants import *
-from globals import *
+from globalvars import *
 from functions import *
 from layout import *
 from stats import *
 import optionvars
-
-n = 0
 
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------CLASSES-------------------------------------------------------"""
@@ -18,18 +16,22 @@ n = 0
 
 """----------------------------------------------------PLAYER--------------------------------------------------------"""
 class Player:
-
     def __init__(self, _frame, _x, _y, _type, _score=0):
         self.score = _score
+        # Si ce sont des jetons jouables,
         if self.score == 0:
+            # Leur position x et y correspond aux coordonnées de grille i, j
             self.x, self.y = cellToPixel(_x), cellToPixel(_y)
             self.i, self.j = _x, _y
+        # Si ce sont des jetons à afficher au score,
         else:
+            # Leur position x et y correspond aux arguments qui servent à calculer i, j
             self.x, self.y = _x, _y
             self.i, self.j = pixelToCell(_x), pixelToCell(_y)
         self.xTo, self.yTo, self.sTo = self.x, self.y, playerCanvasSize
         self.type = _type
         self.super = False
+        # Un jeton de type -1 est blanc, un jeton de type 1 est noir
         self.col1 = colour["whitePlayer"] if _type == -1 else colour["blackPlayer"]
         self.col2 = colour["whitePlayer"] if _type == +1 else colour["blackPlayer"]
         self.canvas = Canvas(_frame, width=playerCanvasSize, height=playerCanvasSize, \
@@ -42,38 +44,54 @@ class Player:
         self.update()
     def changePosition(self, _x, _y):
         global players
+        # Si on est un jeton jouable,
         if self.score == 0:
-            _i, _j = pixelToCell(self.x), pixelToCell(self.y)
-            players[_i][_j] = -1
+            # On calcule les coordonnées sur la grille i, j de l'ancienne position
+            self.i, self.j = pixelToCell(self.x), pixelToCell(self.y)
+            # On reset la case vide derrière
+            players[self.i][self.j] = -1
+            # On set la case devant
             players[_x][_y] = self
-            players[_x][_y].canvas.bind("<1>", lambda event, x=_x, y=_y: \
-                click(event, x, y))
+            players[_x][_y].canvas.bind("<1>", lambda event, x=_x, y=_y: click(event, x, y))
             self.x = cellToPixel(_x)
             self.y = cellToPixel(_y)
+        # Si on est un jeton de score,
         else:
+            # Set la position
             self.x = _x
             self.y = _y
+        # Afficher le jeton en mouvement par dessus tout
         Misc.lift(self.canvas, aboveThis=None)
     def update(self):
+        # Vitesse de mouvement
         speed = 0.2 * refreshRate * 0.1 if self.score == 0 else 0.15 * refreshRate * 0.1
+        # Faire approcher de manière smooth les coordonnées du jeton (xTo, yTo) des coordonnées désirées (x, y)
         self.xTo = lerp(self.xTo, self.x, speed)
         self.yTo = lerp(self.yTo, self.y, speed)
+        # Calcul de la différence de mouvement à faire
         xDif = abs(self.xTo-self.x)
         yDif = abs(self.yTo-self.y)
         farEnough = xDif > 0.01 and yDif > 0.01
+        # Bouger le jeton si il y a un grand mouvement à faire (pour pas perdre des ressources sur des micromouvements)
         if farEnough: self.canvas.place(x=self.xTo, y=self.yTo)
+        # Si on est un jeton à afficher,
         if self.score == 1:
-            self.sTo = lerp(self.sTo, playerCanvasSize / 2, speed)
-            self.canvas.configure(width=self.sTo, height=self.sTo)
-            self.canvas.coords(self.canvasItem, 0, 0, self.sTo, self.sTo)
-            self.canvas.itemconfigure(self.canvasItem, width=6)
+            # Calcul de la différence de mouvement à faire
+            sDif = abs(self.sTo - playerCanvasSize / 2)
+            bigEnough = sDif > 1
+            # Faire baisser la taille du jeton s'il n'est pas déjà petit
+            if bigEnough:
+                self.sTo = lerp(self.sTo, playerCanvasSize / 2, speed/2)
+                self.canvas.configure(width=self.sTo, height=self.sTo)
+                self.canvas.coords(self.canvasItem, 0, 0, self.sTo, self.sTo)
+                self.canvas.itemconfigure(self.canvasItem, width=6)
+        # Colorier le canevas de la bonne couleur
         self.canvas.itemconfigure(self.canvasItem, fill=self.col1, outline=self.col2)
+        # Se ré-appeler pour mettre tout à jour
         self.canvas.after(refreshRate, self.update)
-
 
 """-----------------------------------------------------BOARD--------------------------------------------------------"""
 class Board:
-
     def __init__(self, _frame, _gSize, _bSize):
         for j in range(_gSize):
             for i in range(_gSize):
@@ -105,9 +123,18 @@ class Board:
                 # Couleur des boutons
                 b[i][j].config(background=c[i][j])
 
+"""----------------------------------------------------COUNTER-------------------------------------------------------"""
+class Counter:
+    #https://stackoverflow.com/questions/35088139/how-to-make-a-thread-safe-global-counter-in-python
+    def __init__(self, initialValue=0):
+        self.value = initialValue
+        self.lock = Lock()
+    def increment(self):
+        with self.lock:
+            self.value += 1
+
 """-----------------------------------------------------SOUND--------------------------------------------------------"""
 class Sound(Thread):
-
     def __init__(self, _name):
         Thread.__init__(self)
         self.name = _name
@@ -124,47 +151,75 @@ class Sound(Thread):
 
 """Fonction qui s'éxécute toutes les N millisecondes"""
 def updateGame():
+    global aiState, aiCoords, aiInCombo
+    # Si la variable restart == 1, on reset le game
     if restart.get() == 1: resetGame()
+    # On check quels joueurs peuvent bouger/manger et les colorier
     canMove()
+    # On incrémente le compteur global
+    currentFrame = getCurrentFrame()
+    if currentFrame == gameFrame:
+        counter.increment()
+    # Si l'IA attend, la relancer
+    if aiState == None:
+        aiState = aiMove(aiCoords[0], aiCoords[1], combo=aiInCombo)
+    # Se ré-appeler pour mettre à jour
     window.after(refreshRate, updateGame)
 
 """Fonction qui reset le jeu"""
 def resetGame():
     global b, players, scoreDisplay, onePlayerCanEat, selectedPlayer, \
            player, nothingHappened, highlightStuck, scorePlayer
+    # On loop dans la grille
     for j in range(gSize):
         for i in range(gSize):
+            # Détruire les cases de la grille
             b[i][j].unbind("<1>")
             b[i][j].destroy()
-            if players[i][j] != -1:
+            # Si il y a un jeton,
+            if not empty(i, j):
+                # Détruire le jeton
                 players[i][j].canvas.unbind("<1>")
                 players[i][j].canvas.destroy()
+    # Pour les deux types de joueurs,
     for p in [-1, 1]:
+        # Détruire les joueurs qui sont affichés au score
         for k in range(len(scorePlayer[p])):
             if type(scorePlayer[p][k]) != int:
                 scorePlayer[p][k].canvas.destroy()
+    # Reset les variables
     scoreDisplay[-1].set(str(gSize * 2))
     scoreDisplay[+1].set(str(gSize * 2))
     onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
     selectedPlayer, player, nothingHappened, highlightStuck = -1, -1, 0, False
     scorePlayer = {-1: [0 for i in range(gSize * 2 + 1)], 1: [0 for i in range(gSize * 2 + 1)]}
+    counter.value = 0
+    aiState = True if optionvars.humanPlayer == player else None
+    aiCoords = (0, 0)
+    aiInCombo = 0
+    # Recréer une table de jeu
     Board(gameBoard, gSize, bSize)
-    print(player)
+    # Ne plus éxécuter
     restart.set(0)
 
 """Fonction qui détermine si un joueur est coincé"""
 def isBlocked(ptype):
     global players, c
+    # Variable déterminant si un des joueurs peut bouger
     _playerCanMove = 0
+    # On loop dans la grille
     for pi in range(gSize + 1):
         for pj in range(gSize + 1):
             _player = players[pi][pj]
             if _player != -1:
                 _type = _player.type
+                # Si un jeton du type indiqué peut bouger,
                 if _type == ptype and \
                         (highlight(pi, pj, _type, behaviour=-1) \
                          or highlight(pi, pj, _type, behaviour=-2)):
+                    # Incrémenter la variable
                     _playerCanMove += 1
+    # Retourner si le joueur est bloqué ou pas
     if _playerCanMove == 0:
         return True
     else:
@@ -178,106 +233,179 @@ def isDead(ptype):
 """Fonction qui check s'il y a eu victoire ou pas"""
 def victory():
     global nothingHappened, winner
+    # Si il ne s'est rien passé depuis 25 tours,
     if nothingHappened >= 25:
+        # Déclarer égalité
         print("DRAW, no one won, no one lost")
+    # On check pour chaque joueur
     for _player in [-1, 1]:
+        # S'il est bloqué ou s'il a plus de jetons,
         if isBlocked(_player) or isDead(_player):
+            # Le gagnant est l'autre joueur
             winner.set(-_player)
-            endStr = "Le joueur {0} a gagné\nLe joueur {1} a perdu". format("BLANC" if winner.get() == -1 else "NOIR", \
-                                                                            "NOIR" if winner.get() == -1 else "BLANC")
-            Popup(text="La partie est terminée!", subtext=endStr, endGame=True, twoPlayers=optionvars.ai==0)
+            # Selon le mode de jeu, générer un texte de fin de jeu
+            if optionvars.ai == 1:
+                endStr = "{0} gagné\n{1} perdu".format(
+                    "Vous avez" if winner.get() == optionvars.humanPlayer else "La machine a", \
+                    "La machine a" if winner.get() == optionvars.humanPlayer else "Vous avez", )
+            else:
+                endStr = "Le joueur {0} a gagné\nLe joueur {1} a perdu".format(
+                    "BLANC" if winner.get() == -1 else "NOIR", \
+                    "NOIR" if winner.get() == -1 else "BLANC")
+            # Créer un popup de fin de jeu
+            Popup(text="La partie est terminée!", subtext=endStr, type=1, twoPlayers=optionvars.ai == 0)
             break
 
-"""Fonction qui check si on un joueur peut en manger un autre"""
+"""Fonction qui transforme un jeton en super jeton"""
+def turnSuper(i, j):
+    global players, nothingHappened
+    players[i][j].super = True
+    # players[i][j].col2 = players[i][j].col1
+    players[i][j].col2 = colour["gold"]
+    players[i][j].canvas.create_polygon(playerCanvasSize / 2, 0 + 4, \
+                                        playerCanvasSize - 4, playerCanvasSize / 2, \
+                                        playerCanvasSize / 2, playerCanvasSize - 4, \
+                                        0 + 4, playerCanvasSize / 2, \
+                                        fill=players[i][j].col1, \
+                                        outline=players[i][j].col2, \
+                                        width=4)
+    Sound(sound["super"])
+    nothingHappened = 0
+
+"""Fonction qui check si on un jeton peut en manger un autre"""
 def canMove():
     global player, players, onePlayerCanEat, onePlayerCanMove
+    # Reset les dictionnnaires déterminant quels joueurs peuvent bouger ou manger/capturer
     onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
     onePlayerCanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
+    # Exécuter deux fois (une pour le mouvement et une pour la capture)
     for be in [-1, -2]:
-        for _player in [-1, 1]:
-            for pi in range(gSize):
-                for pj in range(gSize):
-                    if players[pi][pj] != -1 and players[pi][pj].type == _player:
-                        if highlight(pi, pj, _player, behaviour=be):
-                            if _player == player:
-                                if be == -1:
-                                    onePlayerCanEat[_player].append((pi, pj))
-                                    onePlayerCanMove[_player].append((pi, pj))
-                                if be == -2:
-                                    onePlayerCanMove[_player].append((pi, pj))
-                            if c[pi][pj] != colour["green"]:
-                                if _player == player:
-                                    caseColour(pi, pj, colour["red"])
-                                continue
-                            else:
-                                resetCaseColour(withGreen=1)
-                                return None
+        # On loop dans la grille
+        for pi in range(gSize):
+            for pj in range(gSize):
+                # S'il y a un jeton et s'il est du joueur actuellement en train de jouer
+                if not empty(pi, pj) and players[pi][pj].type == player:
+                    # Calculer s'il peut bouger ou manger/capturer
+                    if highlight(pi, pj, player, behaviour=be):
+                        # S'il peut manger
+                        if be == -1:
+                            # L'ajouter au dictionnaire de ceux qui peuvent bouger et ceux qui peuvent manger
+                            onePlayerCanEat[player].append((pi, pj))
+                            onePlayerCanMove[player].append((pi, pj))
+                        # S'il peut bouger
+                        if be == -2:
+                            # L'ajouter au dictionnaire de ceux qui peuvent bouger
+                            onePlayerCanMove[player].append((pi, pj))
+                        # Si le couleur de la case n'est pas déjà verte
+                        if c[pi][pj] != colour["green"]:
+                            # Colorier la case en rouge
+                            caseColour(pi, pj, colour["red"])
+                        # Sinon,
+                        else:
+                            # Annuler toutes les couleurs rouges et arrêter d'executer la fonction
+                            resetCaseColour(withGreen=1)
+                            return
+        # Si on check si le joueur peut manger un autre,
         if be == -1:
+            # Si le joueur peut effectivement en manger un autre,
             if onePlayerCanEat != {-1: [(-1, -1)], 1: [(-1, -1)]}:
-                return None
+                # Arrêter d'exécuter la fonction (on check pas si il peut bouger, il faut qu'il mange obligatoirement)
+                return
+            # Sinon,
             else:
+                # On check si on peut bouger
                 continue
 
 """Fonction qui check où on peut aller"""
 def highlight(i, j, player, behaviour=1):
-    global selectedPlayer, highlightStuck, onePlayerCanEat
+    # Cette fonction retourne/fait différentes choses selon l'argument "behaviour"
+    # behaviour == -3: retourne une liste de coordonnées indiquant les différents mouvements que le jeton peut faire
+    # behaviour == -2: retourne True si on peut bouger d'une case
+    # behaviour == -1: retourne True si on peut manger un autre jeton
+    # behaviour ==  0: met en place un combo si possible (se ré-appelle en behaviour == 1, change des variables...)
+    # behaviour ==  1: colorie les cases sur lesquelles le jeton peut bouger en vert
+    global selectedPlayer, highlightStuck, onePlayerCanEat, aiCoords, aiInCombo
+    # Variable stoquant les mouvements possibles (pour behaviour = -3)
     possibleMoves = []
+    # Direction verticale (en haut ou en bas, selon le joueur)
     direction1 = [player]
+    # Si le jeton est super, il peut aller dans la direction verticale opposée
     if players[i][j].super: direction1.append(-player)
+    # Directions horizontales (droite et gauche)
     direction2 = [-1, 1]
+    # On check pour toutes les directions
     for playerVar in direction1:
         for direction in direction2:
-            # Coordonnées des checks
+            # Coordonnées des checks (a étant le nombre de cases dans la direction actuelle du loop)
             ni = lambda a: i - a * direction
             nj = lambda a: j + a * playerVar
-            # On définit les conditions des checks
+            # On définit les conditions des checks:
+            # Un jeton de même type (1 case devant)
             samePlayerCondition = players[ni(1)][nj(1)] != -1 \
                                   and players[ni(1)][nj(1)].type == player
+            # Un jeton de type opposé (1 case devant)
             otherPlayerCondition = players[ni(1)][nj(1)] != -1 \
                                    and players[ni(1)][nj(1)].type == -player
+            # Hors grille (1 ou 2 cases devant)
             outsideGrid = (not isBetween(ni(1), 0, gSize - 1) \
                            or not isBetween(nj(1), 0, gSize - 1)) \
                           or (otherPlayerCondition and ( \
                         not isBetween(ni(2), 0, gSize - 1) \
                         or not isBetween(nj(2), 0, gSize - 1)))
+            # En behaviour == 1, colorier la case du jeton selectionné en vert
             if behaviour == 1: caseColour(i, j, colour["green"])
-            # Si on est hors grille
+            # Si on est hors grille, continuer dans une autre direction
             if outsideGrid: continue
-            # S'il y a un ennemi en diagonale et qu'ensuite la case est vide
+            # S'il y a un ennemi et qu'ensuite la case est vide
             if otherPlayerCondition:
                 if empty(ni(2), nj(2)):
+                    # En behaviour == 1, on colorie les cases pour que le jeton puisse bouger normalement
                     if behaviour == 1:
+                        # Colorier les 2 cases de devant en vert
                         caseColour(ni(1), nj(1), colour["green"])
                         caseColour(ni(2), nj(2), colour["green"])
+                    # En behaviour == 0, on enclenche une séquence de combo
                     elif behaviour == 0:
+                        # Bloquer le jeton dans un combo
                         highlightStuck = True
+                        # Changer de jeton sélectionné
                         selectedPlayer = players[i][j]
-                        caseColour(i, j, colour["green"])
-                        if player == optionvars.humanPlayer:
-                            highlight(i, j, player, behaviour=1)
+                        # Colorier les cases pour manger
+                        highlight(i, j, player, behaviour=1)
+                        # Si on est l'IA, ré-appeler la fonction pour continuer la séquence de mouvements
+                        aiCoords = ((i, j), (ni(2), nj(2)))
+                        aiInCombo = 1
+                    # En behaviour == -1, on retourne True
                     if behaviour == -1:
                         return True
+                    # En behaviour == -3, on ajoute ce mouvement de capture aux mouvements possibles
                     if behaviour == -3:
                         possibleMoves.append((ni(2), nj(2)))
-                else:
-                    continue
-            elif behaviour == 0:
-                continue
-            # S'il y a un de nos jetons en diagonale
+                # Si la case après l'ennemi n'est pas vide, continuer dans une autre direction
+                else: continue
+            # S'il n'y a pas d'ennemi, continuer dans une autre direction
+            elif behaviour == 0: continue
+            # S'il y a un de nos jetons, continuer dans une autre direction
             if samePlayerCondition: continue
             # Si la case est vide
             if empty(ni(1), nj(1)):
-                if behaviour >= 0 and onePlayerCanEat[player] == [(-1, -1)] and not highlightStuck:
-                    caseColour(ni(1), nj(1), colour["green"])
-                if not samePlayerCondition and behaviour == -2:
-                    return True
-                if behaviour == -3 and onePlayerCanEat[player] == [(-1, -1)] and not highlightStuck:
-                    possibleMoves.append((ni(1), nj(1)))
-    if behaviour == -3:
-        return possibleMoves
+                # Si on ne peut pas manger et si on est pas coincés dans un combo,
+                if onePlayerCanEat[player] == [(-1, -1)] and not highlightStuck:
+                    # En behaviour == 0, 1, 2, colorier la case de devant en vert
+                    if behaviour >= 0:
+                        caseColour(ni(1), nj(1), colour["green"])
+                    # En behaviour == -3, ajouter le mouvement vers la case de devant
+                    # dans la liste de mouvements possibles
+                    if behaviour == -3:
+                        possibleMoves.append((ni(1), nj(1)))
+                # Si on est en behaviour == -2, retrourner True
+                if behaviour == -2: return True
+    # A la fin de la fonction, si on est en behaviour == -3, retourner les mouvements possibles
+    if behaviour == -3: return possibleMoves
+    # Retourner False (si behaviour == -1, -2 n'a pas retourné True)
     return False
 
-"""Fonction qui permet de manger un joueur"""
+"""Fonction qui permet de manger un jeton"""
 def eat(i, j, player, playerMovement):
     # Définition du joueur mangé
     eatenPlayerX = i + int(playerMovement[0] / 2)
@@ -291,7 +419,7 @@ def eat(i, j, player, playerMovement):
     = Player(gameFrame, boardToFrame(cellToPixel(eatenPlayerX), "x"), \
              boardToFrame(cellToPixel(eatenPlayerY), "y"), \
              ePlayerType, _score=1)
-    # Mouvement du canevas dans le tableau du score
+    # Position où le mini canevas va aller
     playersPerRow, playersPerColumn = 5, 4
     hardCodedCoordinates = (460, 190)
     scorePlayersSpacingX = (gameScoreBoard.halfScoreBoardSize - \
@@ -313,127 +441,139 @@ def eat(i, j, player, playerMovement):
     scorePositionY = hardCodedCoordinates[1] + gameScoreBoard.scoreBoardBorder + scorePlayersSpacingY \
                      + (playerCanvasSize / 2 + scorePlayersSpacingY) \
                      * ((int(scoreDisplay[ePlayerType].get()) - 1) // playersPerRow)
-    scorePlayer[ePlayerType][int(scoreDisplay[ePlayerType].get())] \
-        .changePosition(scorePositionX, scorePositionY)
+    # Mouvement du mini canevas
+    scorePlayer[ePlayerType][int(scoreDisplay[ePlayerType].get())].changePosition(scorePositionX, scorePositionY)
+    # Changement de couleur si le jeton est super
     if eatenPlayer.super:
-        scorePlayer[ePlayerType][int(scoreDisplay[ePlayerType].get())] \
-            .col1 = eatenPlayer.col2
+        scorePlayer[ePlayerType][int(scoreDisplay[ePlayerType].get())].col1 = eatenPlayer.col2
     # Cleanup des variables
     eatenPlayer.canvas.destroy()
     players[eatenPlayerX][eatenPlayerY] = -1
     # On check si on peut enchainer avec un combo
-    #print(players[i][j])
     highlight(i, j, player, behaviour=0)
 
 """Fonction Principale"""
 def click(event, i, j):
-    global player, selectedPlayer, highlightStuck, onePlayerCanEat, nothingHappened, onePlayerCanMove, n
-    if player == -optionvars.humanPlayer and optionvars.ai == 1: return
-    # Si on clique sur un joueur,
-    if players[i][j] != -1 and players[i][j] != selectedPlayer \
-            and players[i][j].type == player:
+    global player, selectedPlayer, highlightStuck, onePlayerCanEat, nothingHappened, onePlayerCanMove, \
+           initialCount, aiCoords, aiState, aiInCombo
+    # On quitte si c'est l'IA qui joue et qu'on a cliqué
+    if player == -optionvars.humanPlayer and optionvars.ai == 1 and event != None: return
+    aiInCombo = 0
+    # Si on clique sur un jeton sélectionnable,
+    if players[i][j] != -1 and players[i][j] != selectedPlayer and players[i][j].type == player:
+        # S'il n'est pas dans un combo
         if not highlightStuck:
+            # On enlève les surbrillances
             resetCaseColour()
+            # On set le joueur sélectionné
             selectedPlayer = players[i][j]
             player = selectedPlayer.type
+            # On met les cases où on peut bouger en surbrillance
             highlight(i, j, player)
+            # On joue un effet sonore
             Sound(sound["select"])
-    # Si on est sur une case normale,
+    # Si on est sur une case sans jeton sélectionnable,
     else:
         # Si elle est en surbrillance,
         if c[i][j] == colour["green"] and empty(i, j):
-            # On bouge le joueur
+            # On enlève les surbrillances
             resetCaseColour()
             playerMovement = movementVector(pixelToCell(selectedPlayer.x), \
                                             pixelToCell(selectedPlayer.y), i, j)
+            # On bouge le jeton, on le déselectionne, on le décoince (s'il était dans un combo)
             selectedPlayer.changePosition(i, j)
             player = selectedPlayer.type
             selectedPlayer = -1
             highlightStuck = False
-            # Si on est en train de manger un joueur,
+            # Si a bougé de deux cases,
             if playerMovement[2] > sqrt(2):
+                # On mange le jeton au milieu
                 eat(i, j, player, playerMovement)
+                # On joue un effet sonore
                 Sound(sound["eat"])
+                # On remet le compteur d'inactivité à 0
                 nothingHappened = 0
-            # On change de joueur
-            if (highlightStuck == False):
-                player = -player
-                if optionvars.ai == 1 and player == -optionvars.humanPlayer:
-                    n +=1
-                    #print("running",n)
-                    aiMove()
-                turn.set("c'est au joueur {0} de jouer".format("BLANC" if player == -1 else "NOIR"))
             # Si on est arrivés au bout de la grille,
-            endOfGrid = ((j == 0 and player == -1) or (j == gSize - 1 and player == 1)) and players[i][j].super == False
-            if endOfGrid:
-                players[i][j].super = True
-                # players[i][j].col2 = players[i][j].col1
-                players[i][j].col2 = colour["gold"]
-                players[i][j].canvas.create_polygon(playerCanvasSize / 2, 0 + 4, \
-                                                    playerCanvasSize - 4, playerCanvasSize / 2, \
-                                                    playerCanvasSize / 2, playerCanvasSize - 4, \
-                                                    0 + 4, playerCanvasSize / 2, \
-                                                    fill=players[i][j].col1, \
-                                                    outline=players[i][j].col2, \
-                                                    width=4)
-                Sound(sound["super"])
-                nothingHappened = 0
-            # Si on n'a rien mangé, et qu'on est pas devenu Super Jeton
+            if ((j == 0 and player == -1) or (j == gSize - 1 and player == 1)) and players[i][j].super == False:
+                # On devient super jeton
+                turnSuper(i, j)
+            # Si on n'a rien mangé, et qu'on est pas devenu super jeton
             elif playerMovement[2] <= sqrt(2):
                 Sound(sound["move"])
                 nothingHappened += 1
-        # Si elle est vierge et qu'on est pas coincés dans un combo,
+            # Si on est pas dans un combo,
+            if (highlightStuck == False):
+                # On change de tour de joueur
+                player = -player
+                aiState = True
+                # Si c'est au tour de l'IA, l'éxécuter
+                if optionvars.ai == 1 and player == -optionvars.humanPlayer:
+                    # Mettre à jour les mouvements possibles prématurément
+                    canMove()
+                    # Reset le compteur
+                    initialCount = counter.value
+                    # Calculer le mouvement à faire
+                    aiCoords = aiMoveChoice()
+                    # Engager la séquence de mouvement (clics virtuels à intervalles de temps donnés)
+                    aiState = None
+                # On change le texte montrant les tours
+                turn.set("c'est au joueur {0} de jouer".format("BLANC" if player == -1 else "NOIR"))
+        # Si la case cliquée est vierge et qu'on est pas coincés dans un combo,
         elif not highlightStuck:
+            # On enlève les surbrillances
             resetCaseColour()
+            # On déselectionne les jetons
             selectedPlayer = -1
+            # On joue un effet sonore
             Sound(sound["deselect"])
+    # On check si quelqu'un a gagné
     victory()
 
 """Fonction qui détermine le mouvement de la machine"""
-def aiMove():
+def aiMoveChoice():
     global difficulty, onePlayerCanMove, player, highlightStuck
+    # Le joueur IA est l'inverse du joueur humain
     aiPlayer = -optionvars.humanPlayer
+    # En difficulté 0,
     if optionvars.difficulty == 0:
-        if (onePlayerCanMove[-optionvars.humanPlayer]) == [(-1, -1)]:
-            window.after(refreshRate, aiMove)
-        else:
-            randomPlayerToMove = random.choice(onePlayerCanMove[aiPlayer][1:])
-            playerMove = players[randomPlayerToMove[0]][randomPlayerToMove[1]]
-            xDif = abs(playerMove.xTo - playerMove.x)
-            yDif = abs(playerMove.yTo - playerMove.y)
-            notMoving = xDif < 0.01 and yDif < 0.01
-            possibleMoves = highlight(randomPlayerToMove[0], randomPlayerToMove[1], aiPlayer, behaviour=-3)
-            targetMove = random.choice(possibleMoves)
-            playerMovement = movementVector(pixelToCell(playerMove.x), \
-                                            pixelToCell(playerMove.y), targetMove[0], targetMove[1])
-            if notMoving:
-                playerMove.changePosition(targetMove[0], targetMove[1])
-                highlightStuck = False
-                if playerMovement[2] > sqrt(2):
-                    eat(targetMove[0], targetMove[1], player, playerMovement)
-                    Sound(sound["eat"])
-                    nothingHappened = 0
-            # Si on est arrivés au bout de la grille,
-            i, j = targetMove[0], targetMove[1]
-            endOfGrid = ((j == 0 and player == -1) or (j == gSize - 1 and player == 1)) and players[i][j].super == False
-            if endOfGrid:
-                players[i][j].super = True
-                # players[i][j].col2 = players[i][j].col1
-                players[i][j].col2 = colour["gold"]
-                players[i][j].canvas.create_polygon(playerCanvasSize / 2, 0 + 4, \
-                                                    playerCanvasSize - 4, playerCanvasSize / 2, \
-                                                    playerCanvasSize / 2, playerCanvasSize - 4, \
-                                                    0 + 4, playerCanvasSize / 2, \
-                                                    fill=players[i][j].col1, \
-                                                    outline=players[i][j].col2, \
-                                                    width=4)
-                Sound(sound["super"])
-                nothingHappened = 0
-    if highlightStuck == False:
-        player = -player
-    if len(onePlayerCanMove[aiPlayer]) == 2 and highlightStuck == True:
-        window.after(refreshRate, aiMove)
-    resetCaseColour()
+        # On choisit un jeton aléatoire des jetons pouvant bouger
+        playerToMove = random.choice(onePlayerCanMove[aiPlayer][1:])
+        # On détermine les mouvements que ce jeton peut faire
+        possibleMoves = highlight(playerToMove[0], playerToMove[1], aiPlayer, behaviour=-3)
+        # On choisit un de ces mouvements au hazard
+        targetMove = random.choice(possibleMoves)
+        # On retourne le jeton et le mouvement choisi
+        return (playerToMove, targetMove)
+
+"""Fonction qui éxécute le mouvement de la machine"""
+def aiMove(playerToMove, targetMove, combo=0):
+    # Intervalle de temps entre les clics virtuels
+    interval = 30
+    # Si on doit faire un combo,
+    if combo == 1:
+        # Au moment venu,
+        if counter.value - initialCount == interval * 2.5:
+            # Cliquer sur la case pour bouger
+            click(None, targetMove[0], targetMove[1])
+            # Arrêter d'appeler cette fonction
+            return True
+        # Sinon, on attend encore en appelant cette fonction
+        else: return None
+    # Si il s'agit d'un mouvement normal,
+    else:
+        # Au moment venu de sélectionner le joueur,
+        if counter.value - initialCount == interval:
+            # On le sélectionne
+            click(None, playerToMove[0], playerToMove[1])
+            # On attend encore en appelant cette fonction (pour bouger une prochaine fois)
+            return None
+        # Au moment venu de sélectionner une case,
+        elif counter.value - initialCount == interval*1.6:
+            # On sélectionne la case, en faisant cela, la fonction highlight affecte True à aiState,
+            # cela fait qu'on arrête d'appeler la fonction
+            click(None, targetMove[0], targetMove[1])
+        # Sinon, on attend encore en appelant cette fonction
+        else: return None
 
 """------------------------------------------------------------------------------------------------------------------"""
 """----------------------------------------------------EXECUTE-------------------------------------------------------"""
@@ -444,6 +584,13 @@ Board(gameBoard, gSize, bSize)
 
 #Son
 threadLock = Lock()
+
+#Compteur et IA
+counter = Counter()
+initialCounter = 0
+aiState = True if optionvars.humanPlayer == player else None
+aiCoords = (0, 0)
+aiInCombo = 0
 
 #Afficher le menu
 layoutCreate(menuFrame)
