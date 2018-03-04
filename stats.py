@@ -3,16 +3,28 @@ import pickle, copy
 emptyDic = {"games":0, "wins":0, "losses":0, "ai":0, "notai":0, "diff":0, "col":0}
 emptyStats = {"": emptyDic}
 
-def save_obj(obj, name):
+def readStats():
+    global emptyStats
+    try:
+        stats = loadObj("stats")
+    except:
+        stats = emptyStats
+        saveObj(stats, "stats")
+    return stats
+
+def saveObj(obj, name):
     with open(name + '.pkl', 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
-def load_obj(name):
+def loadObj(name):
     with open(name + '.pkl', 'rb') as f:
         return pickle.load(f)
 
-def configStats(name="", games=0, wins=0, losses=0, ai=0, notai=0, diff=0, col=0):
-    global stats, emptyDic
+def configStats(file=readStats(), name="", games=0, wins=0, losses=0, ai=0, notai=0, diff=0, col=0):
+    global emptyDic
+    stats = file
+    defaultNames = ["", " ", "nom du joueur noir", "nom du joueur blanc", "nom du joueur"]
+    if name in defaultNames: return
     default = copy.deepcopy(emptyDic)
     stats.get(name, default)["games"] += games
     stats.get(name, default)["wins"] += wins
@@ -22,16 +34,6 @@ def configStats(name="", games=0, wins=0, losses=0, ai=0, notai=0, diff=0, col=0
     stats.get(name, default)["diff"] += diff
     stats.get(name, default)["col"] += col
     stats[name] = stats.get(name, default)
-    print(stats)
-    save_obj(stats, "stats")
-
-def readStats():
-    global stats, emptyStats
-    try:
-        stats = load_obj("stats")
-    except:
-        stats = emptyStats
-        save_obj(stats, "stats")
-    return stats
+    saveObj(stats, "stats")
 
 stats = readStats()
