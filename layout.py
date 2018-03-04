@@ -1,10 +1,11 @@
 from tkinter import *
 from tkinter import ttk
+from math import *
 from collections import OrderedDict
 import os
 
 from constants import *
-from globals import *
+from globalvars import *
 from functions import *
 from stats import *
 import optionvars
@@ -15,7 +16,6 @@ import optionvars
 
 """----------------------------------------------------BUTTON--------------------------------------------------------"""
 class Button:
-
     def __init__(self, frame, text="", func=lambda:None, size=0, animationType=0, font=mainFont, tag="", \
                  colour=colour["blackPlayer"]):
         self.animationType = animationType
@@ -84,26 +84,26 @@ class Button:
 
 """-----------------------------------------------------POPUP--------------------------------------------------------"""
 class Popup:
-
     def __init__(self, text="", subtext="", textOption1="", textOption2="", funcOption1=-1, funcOption2=-1, \
-                 endGame=False, twoPlayers=False):
+                 twoPlayers=False, type=0):
         self.text, self.subtext, self.tO1, self.tO2 = text, subtext, textOption1, textOption2
+        if type == 2: self.text = self.text.upper()
         self.O1, self.O2 = funcOption1, funcOption2
         assignFunction = lambda a: ((lambda event: self.cancelPopup(event)) if a == -1 \
                                         else (lambda event: self.acceptPopup(event, a)))
         self.O1, self.O2 = assignFunction(self.O1), assignFunction(self.O2)
         self.top = Toplevel()
         self.canvas = Canvas(self.top, bd=0, highlightthickness=0, selectborderwidth=0)
-        self.label = Label(self.canvas, text=self.text, font=(mainFont, 20), fg=colour["black"])
+        self.label = Label(self.canvas, text=self.text, font=(mainFont, 20, "bold"), fg=colour["black"])
         self.label.grid(row=0, column=0, columnspan=2)
         self.sublabel = Label(self.canvas, text=self.subtext, font=(mainFont, 15), fg=colour["blackPlayer"])
         self.sublabel.grid(row=1, column=0, columnspan=2)
-        if not endGame:
+        if type == 0:
             self.button1 = Button(self.canvas, text=self.tO1, func=self.O1, size=15, animationType=1)
             self.button2 = Button(self.canvas, text=self.tO2, func=self.O2, size=15, animationType=1)
             self.button1.canvas.grid(row=2, column=0)
             self.button2.canvas.grid(row=2, column=1)
-        else:
+        elif type == 1:
             self.subsubtext = "\nVeuillez entrer vo{0} nom{1} ci-dessous:". format("s" if twoPlayers else "tre", \
                                                                                      "s" if twoPlayers else "")
             self.subsublabel = Label(self.canvas, text=self.subsubtext, font=(mainFont, 12), fg=colour["blackPlayer"])
@@ -130,6 +130,43 @@ class Popup:
             self.canvas.grid_rowconfigure(5, minsize=15)
             self.button = Button(self.canvas, text="OK", func=okFunction, size=15, animationType=1)
             self.button.canvas.grid(row=6, column=0, columnspan=2)
+        elif type == 2:
+            stats = readStats()
+            self.canvas.grid_columnconfigure(0, minsize=300)
+            self.canvas.grid_columnconfigure(1, minsize=300)
+            self.resultsLabel = Label(self.canvas, text="RÉSULTATS", font=(mainFont, 15, "bold"), fg="black")
+            self.resultsLabel.grid(row=2, column=0, columnspan=1)
+            resultsPieItems = [("victoires", stats[text]["wins"], colour["green"]), \
+                               ("pertes", stats[text]["losses"], colour["blue"]), stats[text]["games"]]
+            self.resultsPie = PieChart(self.canvas, items=resultsPieItems)
+            self.resultsPie.canvas.grid(row=3, column=0, columnspan=1)
+            self.modesLabel = Label(self.canvas, text="MODES DE JEU", font=(mainFont, 15, "bold"), fg="black")
+            self.modesLabel.grid(row=2, column=1, columnspan=1)
+            modesPieItems = [("contre l'ia", stats[text]["ai"], colour["green"]), \
+                             ("contre l'humain", stats[text]["notai"], colour["blue"]), stats[text]["games"]]
+            self.modesPie = PieChart(self.canvas, items=modesPieItems)
+            self.modesPie.canvas.grid(row=3, column=1, columnspan=1)
+            self.canvas.grid_rowconfigure(4, minsize=50)
+            self.frame = Frame(self.canvas)
+            extraLabel = lambda text, blue: Label(self.frame, text=text, font=(mainFont, 12, ("bold" if not blue else "")), \
+                                                  fg=(colour["blue"] if blue else "black"))
+            extraLabel("Nombre de parties jouées: ", 1).grid(row=1, column=0, columnspan=2, sticky=E)
+            extraLabel(str(stats[text]["games"]), 0).grid(row=1, column=2, columnspan=1, sticky=W)
+            extraLabel("Couleur préférée: ", 1).grid(row=2, column=0, columnspan=2, sticky=E)
+            extraLabel(("blanc" if stats[text]["col"] <= 0 else "noir"), 0).grid(row=2, column=2, columnspan=1, sticky=W)
+            extraLabel("Difficulté la plus jouée: ", 1).grid(row=3, column=0, columnspan=2, sticky=E)
+            extraLabel(str(int(stats[text]["diff"]/stats[text]["games"])), 0).grid(row=3, column=2, columnspan=1, sticky=W)
+            extraLabel("Nombre total de mouvements: ", 1).grid(row=4, column=0, columnspan=2, sticky=E)
+            extraLabel("[...]", 0).grid(row=4, column=2, columnspan=1, sticky=W)
+            extraLabel("Nombre total de captures: ", 1).grid(row=5, column=0, columnspan=2, sticky=E)
+            extraLabel("[...]", 0).grid(row=5, column=2, columnspan=1, sticky=W)
+            extraLabel("Temps total de jeu: ", 1).grid(row=6, column=0, columnspan=2, sticky=E)
+            extraLabel("[...]", 0).grid(row=6, column=2, columnspan=1, sticky=W)
+            self.frame.grid(row=5, column=0, columnspan=2)
+            self.canvas.grid_rowconfigure(6, minsize=50)
+            okFunction = lambda event, f=nothing: self.acceptPopup(event, f)
+            self.button = Button(self.canvas, text="OK", func=okFunction, size=20, animationType=1)
+            self.button.canvas.grid(row=7, column=0, columnspan=2)
         self.canvas.pack(padx=15, pady=15, fill="both")
         self.top.resizable(width=False, height=False)
         self.top.transient(window)
@@ -150,9 +187,7 @@ class Popup:
             event.widget.insert(0, defaultText)
 
 """-----------------------------------------------------APERCU-------------------------------------------------------"""
-
 class BoardPreview:
-
     def __init__(self, frame):
         self.frame = Frame(frame, borderwidth=3, bg="black")
         self.g = [[0 for i in range(gSize + 1)] for j in range(gSize + 1)]
@@ -164,7 +199,6 @@ class BoardPreview:
 
 """--------------------------------------------------SCORE-BOARD-----------------------------------------------------"""
 class ScoreBoard:
-
     def __init__(self, _frame, _size, _underSize, _border):
         self.scoreBoardSize, self.underScoreBoardSize = _size, _underSize
         self.halfScoreBoardSize = self.scoreBoardSize[0] / 2
@@ -206,6 +240,46 @@ class ScoreBoard:
         self.whitePlayerScore.place(x=self.halfScoreBoardSize + self.playerScoreOffset, \
                                     y=(self.scoreBoardSize[1] - self.playerScoreSize) / 4)
 
+"""---------------------------------------------------DIAGRAMME------------------------------------------------------"""
+class PieChart:
+    def __init__(self, frame, items={}, size=100):
+        self.items, self.size = items, size
+        xOffset, yOffset = 80, 60
+        self.canvas = Canvas(frame, width=self.size+xOffset, height=self.size+yOffset)
+        self.pieCanvas = Canvas(self.canvas, width=self.size, height=self.size)
+        elementSum = self.items[len(self.items)-1]
+        del self.items[len(self.items)-1]
+        self.rawPercentage = {}
+        self.colour = {}
+        stepNumbersCumulation = 90
+        for element in range(len(self.items)):
+                self.rawPercentage[element] = self.items[element][1]/elementSum
+                stepNumbers = self.rawPercentage[element] * 360
+                self.colour[element] = self.items[element][2]
+                if stepNumbers < 360 and stepNumbers > 0:
+                    self.pieCanvas.create_arc(2, 2, self.size, self.size, \
+                                              start=stepNumbersCumulation, extent=stepNumbers,\
+                                              fill=self.colour[element], width=5, outline="white")
+                elif stepNumbers == 360:
+                    self.pieCanvas.create_oval(2, 2, self.size, self.size, \
+                                               fill=self.colour[element], width=5, outline="white")
+                stepNumbersCumulation += stepNumbers
+        self.pieCanvas.place(x=xOffset/2, y=yOffset/2)
+        if len(self.items) == 2:
+            side = 0
+            for element in range(len(self.items)):
+                around = lambda side, mainStr, smallStr: smallStr*(side)+mainStr+smallStr*(not side)
+                elementTextX = (xOffset/2-xOffset/4+2) + (xOffset/4+self.size+xOffset/4)*side
+                self.canvas.create_text(elementTextX, (self.size+yOffset)/2, \
+                                        text=around(side, intToString(int(self.rawPercentage[element]*100)) \
+                                                    + ("0" if self.rawPercentage[element] == 0 else ""), "%"), \
+                                        font=(mainFont, 12, "bold"), fill=self.colour[element])
+                elementTextY = (yOffset/2-yOffset/4+2) + (yOffset/4+self.size+yOffset/4)*side
+                self.canvas.create_text((self.size+xOffset)/2, elementTextY, \
+                                        text=str(self.items[element][1]) + " " + self.items[element][0].upper(),
+                                        font=(mainFont, 12, "bold"), fill=self.colour[element])
+                side += 1
+
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
@@ -238,13 +312,14 @@ def gameQuit(event):
 def gameCancel(event):
     global winner
     print("gameCancel")
+    #Debug
     if optionvars.ai == 1:
         endStr = "{0} gagné\n{1} perdu".format("Vous avez" if winner.get() == optionvars.humanPlayer else "La machine a", \
                                                "La machine a" if winner.get() == optionvars.humanPlayer else "Vous avez",)
     else:
         endStr = "Le joueur {0} a gagné\nLe joueur {1} a perdu".format("BLANC" if winner.get() == -1 else "NOIR", \
                                                                        "NOIR" if winner.get() == -1 else "BLANC")
-    Popup(text="La partie est terminée!", subtext=endStr, endGame=True, twoPlayers=optionvars.ai==0)
+    Popup(text="La partie est terminée!", subtext=endStr, twoPlayers=optionvars.ai==0, type=1)
 def gameSaveName(event):
     global winner
     names = []
@@ -254,13 +329,12 @@ def gameSaveName(event):
     for i in canvas.winfo_children():
         if i.winfo_class() == "Entry":
             names.append(i.get())
-    print(names[0], names[1])
     for i, n in enumerate(names):
         cWinner = clamp(winner.get(), 0, 1)
         _wins = 1 if i == cWinner else 0
         _losses = 0 if i == cWinner else 1
         _col = -1 if i == 0 else 1
-        configStats(name=n.lower(), games=1, wins=_wins, losses=_losses, ai=optionvars.ai, notai=1-optionvars.ai, \
+        configStats(file=readStats(), name=n.lower(), games=1, wins=_wins, losses=_losses, ai=optionvars.ai, notai=1-optionvars.ai, \
                     diff=optionvars.difficulty, col=_col)
 
 """----------------------------------------------BOUTONS-DES-OPTIONS-------------------------------------------------"""
@@ -286,13 +360,18 @@ def optionsStats(event):
     updateOptionsButtons()
 def deleteStats(event):
     os.remove("stats.pkl")
-    print("deleteStats")
+
+"""-----------------------------------------------BOUTONS-DES-STATS--------------------------------------------------"""
+def statsMore(event, name):
+    Popup(text=name, type=2)
 
 """------------------------------------------------BOUTONS-DIVERS----------------------------------------------------"""
 def info(event):
     webbrowser.open(os.path.abspath("_instructions.pdf"))
 def back(event):
     layoutCreate(menuFrame)
+def nothing(event):
+    return
 
 """---------------------------------------------CRÉATION-DESTRUCTION-------------------------------------------------"""
 def layoutCreate(frame):
@@ -304,6 +383,7 @@ def layoutCreate(frame):
         backIcon.canvas.place_forget()
     global currentFrame
     currentFrame = frame
+    if currentFrame == gameFrame: gameRestart(0)
     if currentFrame == optionsFrame: updateOptionsButtons()
     if currentFrame == statsFrame: updateStatsValues()
 def layoutDelete(frame=None, allBut=None):
@@ -346,6 +426,7 @@ def updateOptionsButtons():
             if case(i, j): optionsPreviewChoice1.g[i][j].configure(bg=colour["black"])
             else: optionsPreviewChoice1.g[i][j].configure(bg=colour["white"])
 def updateStatsValues():
+    noStatsValues()
     stats = readStats()
     tempSortedStats = {}
     for i in stats.keys():
@@ -353,35 +434,36 @@ def updateStatsValues():
     tempSortedStats = OrderedDict(reversed(sorted(tempSortedStats.items(), key=lambda t: t[1])))
     sortedStats = {}
     rowNumber = 0
-    for i in tempSortedStats.keys():
-        sortedStats[i] = OrderedDict(stats[i])
-        if i != "":
-            statsNames[rowNumber] = Label(statsTableFrameC, text=cutString(i.upper(), 18), font=(mainFont, 15))
-            statsRanks[rowNumber] = Label(statsTableFrameC, text=str(rowNumber + 1), font=(mainFont, 15))
-            statsGames[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["games"], font=(mainFont, 15))
-            statsWins[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["wins"], font=(mainFont, 15))
-            statsLosses[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["losses"], font=(mainFont, 15))
-            if sortedStats[i]["games"] != 0:
-                winPercentage[rowNumber] = str(int((sortedStats[i]["wins"] / sortedStats[i]["games"]) * 100)) + "%"
-                lossPercentage[rowNumber] = str(int((sortedStats[i]["losses"] / sortedStats[i]["games"]) * 100)) + "%"
-            else:
-                winPercentage[rowNumber] = "0%"
-                lossPercentage[rowNumber] = "0%"
-            statsWinsP[rowNumber] = Label(statsTableFrameC, text=winPercentage[rowNumber], font=(mainFont, 15))
-            statsLossesP[rowNumber] = Label(statsTableFrameC, text=lossPercentage[rowNumber], font=(mainFont, 15))
-            buttonXOffset[rowNumber] = listSum(statsTableSize,0,4)-statsTableHardCodedValues[4]+statsTableSize[5]/2-20
-            buttonYOffset[rowNumber] = (2 * rowNumber + 1) * (statsTableEntryHeight / 2) - 20
-            moreButton[rowNumber] = Button(statsTableFrame, text=">", func=gameQuitPopup, size=20, animationType=1)
-            statsNames[rowNumber].grid(row=rowNumber, column=0)
-            statsRanks[rowNumber].grid(row=rowNumber, column=1)
-            statsGames[rowNumber].grid(row=rowNumber, column=2)
-            statsWins[rowNumber].grid(row=rowNumber, column=3)
-            statsWinsP[rowNumber].grid(row=rowNumber, column=4)
-            statsLosses[rowNumber].grid(row=rowNumber, column=5)
-            statsLossesP[rowNumber].grid(row=rowNumber, column=6)
-            moreButton[rowNumber].canvas.place(x=buttonXOffset[rowNumber], y=buttonYOffset[rowNumber])
-            rowNumber += 1
-    if stats == emptyStats: noStatsValues()
+    if stats != emptyStats:
+        for i in tempSortedStats.keys():
+            sortedStats[i] = OrderedDict(stats[i])
+            if i != "":
+                statsNames[rowNumber] = Label(statsTableFrameC, text=cutString(i.upper(), 18), font=(mainFont, 15))
+                statsRanks[rowNumber] = Label(statsTableFrameC, text=str(rowNumber + 1), font=(mainFont, 15))
+                statsGames[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["games"], font=(mainFont, 15))
+                statsWins[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["wins"], font=(mainFont, 15))
+                statsLosses[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["losses"], font=(mainFont, 15))
+                if sortedStats[i]["games"] != 0:
+                    winPercentage[rowNumber] = str(int((sortedStats[i]["wins"] / sortedStats[i]["games"]) * 100)) + "%"
+                    lossPercentage[rowNumber] = str(int((sortedStats[i]["losses"] / sortedStats[i]["games"]) * 100)) + "%"
+                else:
+                    winPercentage[rowNumber] = "0%"
+                    lossPercentage[rowNumber] = "0%"
+                statsWinsP[rowNumber] = Label(statsTableFrameC, text=winPercentage[rowNumber], font=(mainFont, 15))
+                statsLossesP[rowNumber] = Label(statsTableFrameC, text=lossPercentage[rowNumber], font=(mainFont, 15))
+                buttonXOffset[rowNumber] = listSum(statsTableSize,0,4)-statsTableHardCodedValues[4]+statsTableSize[5]/2-20
+                buttonYOffset[rowNumber] = (2 * rowNumber + 1) * (statsTableEntryHeight / 2) - 20
+                moreFunc = lambda event, n=i: statsMore(event, n)
+                moreButton[rowNumber] = Button(statsTableFrame, text=">", func=moreFunc, size=20, animationType=1)
+                statsNames[rowNumber].grid(row=rowNumber, column=0)
+                statsRanks[rowNumber].grid(row=rowNumber, column=1)
+                statsGames[rowNumber].grid(row=rowNumber, column=2)
+                statsWins[rowNumber].grid(row=rowNumber, column=3)
+                statsWinsP[rowNumber].grid(row=rowNumber, column=4)
+                statsLosses[rowNumber].grid(row=rowNumber, column=5)
+                statsLossesP[rowNumber].grid(row=rowNumber, column=6)
+                moreButton[rowNumber].canvas.place(x=buttonXOffset[rowNumber], y=buttonYOffset[rowNumber])
+                rowNumber += 1
 def noStatsValues():
     for row in range(len(statsNames)):
         if statsNames[row] != "": statsNames[row].configure(text="")
@@ -413,6 +495,7 @@ statsFrame.grid_propagate(False)
 """Tout"""
 currentFrame = 0
 mainFrames = [gameFrame, menuFrame, optionsFrame, statsFrame]
+def getCurrentFrame(): return currentFrame
 
 """-----------------------------------------------------MENU---------------------------------------------------------"""
 """Espace Vide"""
@@ -641,7 +724,7 @@ statsTableCanvas.configure(scrollregion=(statsTableCanvas.bbox("all")[0], \
                                          statsTableCanvas.bbox("all")[2], \
                                          statsTableCanvas.bbox("all")[3]-statsTableHardCodedValues[3]))
 """Contenu de la Frame (donc le contenu du tableau)"""
-statsTableEntries = len(stats.keys())
+statsTableEntries = len(readStats().keys())
 statsTableEntryHeight = 38
 statsTableContentHeight = statsTableEntries * statsTableEntryHeight
 while statsTableContentHeight < statsTableFrameSize[1]:
