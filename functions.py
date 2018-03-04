@@ -2,7 +2,7 @@ from tkinter import *
 from math import *
 
 from constants import *
-from globals import *
+from globalvars import *
 
 """Fonction qui enroule un nombre dans un intervalle [0; a]"""
 def wrap(x, a):
