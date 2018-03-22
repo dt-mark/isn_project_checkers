@@ -1,4 +1,4 @@
-from tkinter import * 
+from tkinter import *
 from threading import *
 from winsound import *
 import webbrowser, random, time, os
@@ -136,6 +136,22 @@ class Counter:
         with self.lock:
             self.value += 1
 
+"""-----------------------------------------------------TREE---------------------------------------------------------"""
+class Tree:
+    def __init__(self):
+        self.node = []
+        self.nodeData = []
+    def add(self, node):
+        for i in range(len(node)):
+            self.node.append(Tree())
+            self.nodeData.append(node[i])
+    def get(self, *args):
+        path = "self"
+        for j, i in enumerate(args):
+            beginning = ".node[" if len(args) > 1 and (j != len(args)-1) else ".nodeData["
+            path += beginning+str(i)+"]"
+        print(path)
+        return eval(path)
 """-----------------------------------------------------SOUND--------------------------------------------------------"""
 class Sound(Thread):
     def __init__(self, _name):
@@ -164,7 +180,9 @@ def updateGame():
     if currentFrame == gameFrame:
         counter.increment()
     # Si l'IA attend, la relancer
-    if aiState == None and aiCoords != None:
+    if aiState == None:
+        if aiCoords == None or aiCoords == (0, 0):
+            aiCoords = aiMoveChoice()
         aiState = aiMove(aiCoords[0], aiCoords[1], combo=aiInCombo)
     # Si c'est la fin du jeu, on arrête tout
     if gameEnd: return
@@ -174,7 +192,8 @@ def updateGame():
 """Fonction qui reset le jeu"""
 def resetGame():
     global b, players, scoreDisplay, onePlayerCanEat, selectedPlayer, \
-           player, nothingHappened, highlightStuck, scorePlayer
+           player, nothingHappened, highlightStuck, scorePlayer, \
+           aiCoords, aiState, aiInCombo, moves, initialCount
     # On loop dans la grille
     for j in range(gSize):
         for i in range(gSize):
@@ -199,6 +218,7 @@ def resetGame():
     selectedPlayer, player, nothingHappened, highlightStuck = -1, -1, 0, False
     scorePlayer = {-1: [0 for i in range(gSize * 2 + 1)], 1: [0 for i in range(gSize * 2 + 1)]}
     counter.value = 0
+    initialCount = 0
     aiState = True if optionvars.humanPlayer == player else None
     aiCoords = (0, 0)
     aiInCombo = 0
@@ -207,6 +227,7 @@ def resetGame():
     time.set(0)
     # Recréer une table de jeu
     Board(gameBoard, gSize, bSize)
+    canMove()
     # Ne plus éxécuter
     restart.set(0)
 
@@ -287,7 +308,7 @@ def turnSuper(i, j):
 
 """Fonction qui check si on un jeton peut en manger un autre"""
 def canMove():
-    global player, players, onePlayerCanEat, onePlayerCanMove
+    global player, players, onePlayerCanEat, onePlayerCanMove, aiCoords
     # Reset les dictionnnaires déterminant quels joueurs peuvent bouger ou manger/capturer
     onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
     onePlayerCanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
@@ -386,7 +407,7 @@ def highlight(i, j, player, behaviour=1):
                         # Colorier les cases pour manger
                         highlight(i, j, player, behaviour=1)
                         # Si on est l'IA, ré-appeler la fonction pour continuer la séquence de mouvements
-                        aiCoords = ((i, j), (ni(2), nj(2)))
+                        aiCoords = ((i, j), (ni(2), nj(2))) #call the aiMoveChoice
                         aiInCombo = 1
                     # En behaviour == -1, on retourne True
                     if behaviour == -1:
@@ -602,7 +623,11 @@ threadLock = Lock()
 
 #Compteur
 counter = Counter()
-initialCounter = 0
+initialCount = 0
+
+#IA
+if optionvars.ai == 1 and player != optionvars.humanPlayer:
+    aiState = None
 
 #Afficher le menu
 layoutCreate(menuFrame)
@@ -610,7 +635,6 @@ updateGame()
 
 #Configurer la fenêtre principale
 window.title("PROJET d'ISN")
-window.configure(bg="white")
 window.tk_setPalette(background="white")
 window.resizable(width=False, height=False)
 window.protocol("WM_DELETE_WINDOW", lambda w=window: closeWindow(w))

@@ -18,6 +18,7 @@ import optionvars
 class Button:
     def __init__(self, frame, text="", func=lambda:None, size=0, animationType=0, font=mainFont, tag="", \
                  colour=colour["blackPlayer"]):
+        self.disabled = False
         self.animationType = animationType
         self.refreshRate = 10
         self.text, self.size, self.func = text, size, func
@@ -52,6 +53,8 @@ class Button:
             if enterOrLeave == -1: caller.colourT = 0.5
     def buttonPress(self, event, func, anim):
         self.counter = 0
+        if self.disabled:
+            return
         caller = self.canvas
         if anim == 0:
             caller.size += 4
@@ -62,6 +65,10 @@ class Button:
         func(event)
     def update(self):
         self.counter += 1
+        if self.disabled:
+            self.canvas.itemconfig(self.canvas.label, \
+                                   fill=mergeColour(RGBToHex((0, 0, 0)), RGBToHex((255, 255, 255)), 0.75))
+            return
         if self.animationType == 0:
             RGBcolourA = mergeColour(RGBToHex((75, 75, 75)), RGBToHex((255, 255, 255)), self.canvas.colourA)
             RGBcolourB = mergeColour(RGBToHex((215, 215, 215)), RGBToHex((255, 255, 255)), self.canvas.colourA)
@@ -97,7 +104,8 @@ class Popup:
         self.label = Label(self.canvas, text=self.text, font=(mainFont, 20, "bold"), fg=colour["black"])
         self.label.grid(row=0, column=0, columnspan=2)
         self.sublabel = Label(self.canvas, text=self.subtext, font=(mainFont, 15), fg=colour["blackPlayer"])
-        self.sublabel.grid(row=1, column=0, columnspan=2)
+        if self.subtext != "": self.sublabel.grid(row=1, column=0, columnspan=2)
+        else: self.canvas.grid_rowconfigure(1, minsize=15*2)
         if type == 0:
             self.button1 = Button(self.canvas, text=self.tO1, func=self.O1, size=15, animationType=1)
             self.button2 = Button(self.canvas, text=self.tO2, func=self.O2, size=15, animationType=1)
@@ -132,24 +140,35 @@ class Popup:
             self.button.canvas.grid(row=6, column=0, columnspan=2)
         elif type == 2:
             stats = readFile("stats", emptyStats)
-            self.canvas.grid_columnconfigure(0, minsize=300)
-            self.canvas.grid_columnconfigure(1, minsize=300)
-            self.resultsLabel = Label(self.canvas, text="RÉSULTATS", font=(mainFont, 15, "bold"), fg="black")
-            self.resultsLabel.grid(row=2, column=0, columnspan=1)
+            columnSize, frameSize = 300, 475
+            beginningCanvas, middleCanvas = 60, 260
+            lineWidth = 3
+            self.canvas.grid_columnconfigure(0, minsize=columnSize)
+            self.canvas.grid_columnconfigure(1, minsize=columnSize)
+            self.canvas.create_line(lineWidth/2, beginningCanvas, \
+                                    2*columnSize-lineWidth//2, beginningCanvas, \
+                                    2*columnSize-lineWidth//2, frameSize, \
+                                    lineWidth/2, frameSize, \
+                                    lineWidth / 2, beginningCanvas, \
+                                    width=1.5)
+            self.canvas.create_line(lineWidth/2, middleCanvas, \
+                                    2*columnSize-lineWidth//2, middleCanvas, \
+                                    width=1.5)
+            self.canvas.create_line(columnSize, beginningCanvas, \
+                                    columnSize, middleCanvas, \
+                                    width=1.5)
             resultsPieItems = [("victoires", stats[text]["wins"], colour["green"]), \
                                ("pertes", stats[text]["losses"], colour["blue"]), stats[text]["games"]]
             self.resultsPie = PieChart(self.canvas, items=resultsPieItems)
-            self.resultsPie.canvas.grid(row=3, column=0, columnspan=1)
-            self.modesLabel = Label(self.canvas, text="MODES DE JEU", font=(mainFont, 15, "bold"), fg="black")
-            self.modesLabel.grid(row=2, column=1, columnspan=1)
+            self.resultsPie.canvas.grid(row=2, column=0, columnspan=1)
             modesPieItems = [("contre l'ia", stats[text]["ai"], colour["green"]), \
                              ("contre l'humain", stats[text]["notai"], colour["blue"]), stats[text]["games"]]
             self.modesPie = PieChart(self.canvas, items=modesPieItems)
-            self.modesPie.canvas.grid(row=3, column=1, columnspan=1)
-            self.canvas.grid_rowconfigure(4, minsize=50)
+            self.modesPie.canvas.grid(row=2, column=1, columnspan=1)
+            self.canvas.grid_rowconfigure(3, minsize=50)
             self.frame = Frame(self.canvas)
-            extraLabel = lambda text, blue: Label(self.frame, text=text, font=(mainFont, 12, ("bold" if not blue else "")), \
-                                                  fg=(colour["blue"] if blue else "black"))
+            extraLabel = lambda text, label: Label(self.frame, text=text, font=(mainFont, 12, ("bold" if not label else "")), \
+                                                  fg=(colour["black"] if label else "black"))
             extraLabel("Nombre de parties jouées: ", 1).grid(row=1, column=0, columnspan=2, sticky=E)
             extraLabel(str(stats[text]["games"]), 0).grid(row=1, column=2, columnspan=1, sticky=W)
             extraLabel("Couleur préférée: ", 1).grid(row=2, column=0, columnspan=2, sticky=E)
@@ -162,7 +181,7 @@ class Popup:
             extraLabel(str(stats[text]["eats"]), 0).grid(row=5, column=2, columnspan=1, sticky=W)
             extraLabel("Temps total de jeu: ", 1).grid(row=6, column=0, columnspan=2, sticky=E)
             extraLabel(str(stats[text]["time"]), 0).grid(row=6, column=2, columnspan=1, sticky=W)
-            self.frame.grid(row=5, column=0, columnspan=2)
+            self.frame.grid(row=4, column=0, columnspan=2)
             self.canvas.grid_rowconfigure(6, minsize=50)
             okFunction = lambda event, f=nothing: self.acceptPopup(event, f)
             self.button = Button(self.canvas, text="OK", func=okFunction, size=20, animationType=1)
@@ -263,6 +282,7 @@ class PieChart:
                 elif stepNumbers == 360:
                     self.pieCanvas.create_oval(2, 2, self.size, self.size, \
                                                fill=self.colour[element], width=5, outline="white")
+                    self.pieCanvas.create_line(self.size/2, self.size/2, self.size/2, 0, width=5, fill="white")
                 stepNumbersCumulation += stepNumbers
         self.pieCanvas.place(x=xOffset/2, y=yOffset/2)
         if len(self.items) == 2:
@@ -416,41 +436,28 @@ def updateOptionsButtons():
     options["gColours"] = optionvars.gColours
     saveObj(options, "options")
     col = lambda condition: colour["green"] if condition else colour["blackPlayer"]
-    optionsModeChoice1.canvas.colour = col(optionvars.ai == 1)
-    optionsModeChoice2.canvas.colour = col(optionvars.ai == 0)
-    optionsPlayerChoice1.canvas.colour = col(optionvars.humanPlayer == -1)
-    optionsPlayerChoice2.canvas.colour = col(optionvars.humanPlayer == 1)
-    optionsDifficultyChoice1.canvas.colour = col(optionvars.difficulty == 0)
-    optionsDifficultyChoice2.canvas.colour = col(optionvars.difficulty == 1)
-    optionsDifficultyChoice3.canvas.colour = col(optionvars.difficulty == 2)
-    optionsDifficultyChoice4.canvas.colour = col(optionvars.difficulty == 3)
-    optionsDifficultyChoice5.canvas.colour = col(optionvars.difficulty == 4)
-    optionsDifficultyChoice6.canvas.colour = col(optionvars.difficulty == 5)
-    optionsGridChoice1.canvas.colour = col(optionvars.gColours == 0)
-    optionsGridChoice2.canvas.colour = col(optionvars.gColours == 1)
-    optionsGridChoice3.canvas.colour = col(optionvars.gColours == 2)
-    optionsGridChoice4.canvas.colour = col(optionvars.gColours == 3)
-    optionsGridChoice5.canvas.colour = col(optionvars.gColours == 4)
-    optionsGridChoice6.canvas.colour = col(optionvars.gColours == 5)
-    optionsModeLabel.configure(fg=colour["black"])
-    optionsPlayerLabel.configure(fg=colour["black"])
-    optionsDifficultyLabel.configure(fg=colour["black"])
-    optionsGridLabel.configure(fg=colour["black"])
-    optionsStatsLabel.configure(fg=colour["black"])
-    optionsPreviewLabel.configure(fg=colour["black"])
+    optionsModeChoice[0].canvas.colour = col(optionvars.ai == 1)
+    optionsModeChoice[1].canvas.colour = col(optionvars.ai == 0)
+    optionsPlayerChoice[0].canvas.colour = col(optionvars.humanPlayer == -1)
+    optionsPlayerChoice[1].canvas.colour = col(optionvars.humanPlayer == 1)
+    for i in range(6):
+        optionsDifficultyChoice[i].canvas.colour = col(optionvars.difficulty == i)
+    for i in range(5):
+        optionsGridChoice[i].canvas.colour = col(optionvars.gColours == i)
+    for i in optionsTable.find_withtag("text"):
+        optionsTable.itemconfig(i, fill=colour["black"])
     for i in range(gSize + 1):
         for j in range(gSize + 1):
             if case(i, j): optionsPreviewChoice1.g[i][j].configure(bg=colour["black"])
             else: optionsPreviewChoice1.g[i][j].configure(bg=colour["white"])
-    
-    
 def updateStatsValues():
     noStatsValues()
     stats = readFile("stats", emptyStats)
     tempSortedStats = {}
     for i in stats.keys():
-        tempSortedStats[i] = stats[i]["wins"]
-    tempSortedStats = OrderedDict(reversed(sorted(tempSortedStats.items(), key=lambda t: t[1])))
+        if i != "": tempSortedStats[i] = (stats[i]["wins"], stats[i]["games"])
+    #t[0] contient un tuple avec le nombre de victoires et le nombre de jeux
+    tempSortedStats = OrderedDict(sorted(tempSortedStats.items(), reverse=True, key=lambda t: (t[1][0], t[1][0]/t[1][1])))
     sortedStats = {}
     rowNumber = 0
     if stats != emptyStats:
@@ -550,11 +557,12 @@ gameBoard.grid(row=1, column=0)
 #Board(gameBoard, gSize, bSize)
 """Texte indiquant quel joueur doit jouer"""
 gameTurnText = Label(gameSideFrame1, textvariable=turn, font=(mainFont, 15))
-gameTurnText.grid(row=2, column=0)
+#gameTurnText.grid(row=2, column=0)
+gameSideFrame1.grid_rowconfigure(2, minsize=15*2)
 """Planche de score"""
 gameScoreBoard = ScoreBoard(gameSideFrame2, (300, 150), (300, 100), 6)
-"""Espace Vide"""
 gameScoreBoard.canvas.grid(row=0, column=0)
+"""Espace Vide"""
 gameSideFrame2.grid_rowconfigure(1, minsize=30)
 gameSideFrame2.grid_columnconfigure(0, minsize=400)
 """Boutons"""
@@ -568,95 +576,110 @@ gameQuitText.canvas.grid(row=4, column=0)
 gameSideFrame2.grid_rowconfigure(5, minsize=30)
 
 """---------------------------------------------------OPTIONS--------------------------------------------------------"""
+"""Variables"""
+optionsTableLineWidth = 3
+optionsHeaderSize = 50
+optionsHeaderDistance = 25
+optionsLabelSpace = 40
+optionsButtonSpace = 80
+tableHeight = globalHeight-2*optionsHeaderSize
 """Frames Secondaires"""
-optionsSideFrame1 = Frame(optionsFrame, width=int(globalWidth/2), height=globalHeight)
-optionsSideFrame1.grid_propagate(False)
-optionsSideFrame1.grid(row=0, column=0, sticky="E")
-optionsSideFrame2 = Frame(optionsFrame, width=int(globalWidth/2), height=globalHeight)
-optionsSideFrame2.grid_propagate(False)
-optionsSideFrame2.grid(row=0, column=1, sticky="W")
+optionsTopFrame = Frame(optionsFrame)
+optionsTopFrame.grid(row=0)
+optionsFrame.grid_rowconfigure(0, minsize=optionsHeaderSize)
+optionsFrame.grid_rowconfigure(1, minsize=optionsHeaderDistance)
+optionsTable = Canvas(optionsFrame, width=globalWidth, height=tableHeight)
+optionsTable.grid(row=2)
 """Titre"""
-optionsTitle = Label(optionsSideFrame1, text="PARAMÈTRES", font=(mainFont, 25), height=1)
-optionsTitle.grid(row=0, column=0, columnspan=6)
-"""Espace Vide"""
-optionsSideFrame1.grid_rowconfigure(1, minsize=30)
+optionsTitle = Label(optionsTopFrame, text="PARAMÈTRES", font=(mainFont, 25), height=1)
+optionsTitle.grid(column=0)
+optionsTopFrame.grid_columnconfigure(1, minsize=int(globalWidth/2))
+"""Lignes du Tableau"""
+optionsTable.create_line(optionsTableLineWidth/2, optionsTableLineWidth/2, \
+                         globalWidth-optionsTableLineWidth/2, optionsTableLineWidth/2, \
+                         globalWidth-optionsTableLineWidth/2, tableHeight+optionsTableLineWidth//2, \
+                         optionsTableLineWidth/2, tableHeight+optionsTableLineWidth//2, \
+                         optionsTableLineWidth/2, optionsTableLineWidth/2, \
+                         width=optionsTableLineWidth)
+optionsTable.create_line(globalWidth/2+optionsTableLineWidth/2, optionsTableLineWidth/2, \
+                         globalWidth/2+optionsTableLineWidth/2, tableHeight+optionsTableLineWidth//2, \
+                         width=optionsTableLineWidth/2)
+createLine = lambda xx, yy: optionsTable.create_line(\
+                            xx, yy, xx + globalWidth/2, yy, \
+                            width=optionsTableLineWidth / 2)
+cellHeights = [1*optionsLabelSpace+0*optionsButtonSpace, \
+               1*optionsLabelSpace+1*optionsButtonSpace, \
+               2*optionsLabelSpace+1*optionsButtonSpace, \
+               2*optionsLabelSpace+2*optionsButtonSpace, \
+               3*optionsLabelSpace+2*optionsButtonSpace, \
+               4*optionsLabelSpace+2*optionsButtonSpace, \
+               5*optionsLabelSpace+2*optionsButtonSpace, \
+               6*optionsLabelSpace+2*optionsButtonSpace,]
+for j, i in enumerate(cellHeights):
+    createLine(optionsTableLineWidth/2, i)
+    if j <= 2:
+        createLine(globalWidth/2+optionsTableLineWidth/2, i)
+"""Titres du Tableau"""
+optionsTableLabels1 = ["MODE DE JEU", "", "COULEUR DU JETON", "", "DIFFICULTÉ", "", "COULEURS DE LA GRILLE", ""]
+optionsTableLabels2 = ["STATISTIQUES", "", "APERÇU", "", "", "", "", ""]
+for j, i in enumerate(cellHeights):
+    if j%2 == 0: optionsTable.create_text(globalWidth/4, cellHeights[j]-optionsLabelSpace/2, \
+                              text=optionsTableLabels1[j], fill=colour["black"], font=(mainFont, 14, "bold"), \
+                              width=globalWidth/2, tags="text")
+for j, i in enumerate(cellHeights):
+    if j%2 == 0: optionsTable.create_text(3*globalWidth/4, cellHeights[j]-optionsLabelSpace/2, \
+                              text=optionsTableLabels2[j], fill=colour["black"], font=(mainFont, 14, "bold"), \
+                              width=globalWidth/2, tags="text")
+"""Frames du Tableau"""
+optionsTableFrames1 = [(Frame(window) if j%2 != 0 else 0) for j in range(7+1)]
+optionsTableFrames2 = [(Frame(window) if j%2 != 0 else 0) for j in range(7+1)]
+for j, i in enumerate(cellHeights):
+    if j%2 != 0:
+        optionsButtonSpaceHalf = optionsButtonSpace/2 if j <= 3 else optionsLabelSpace/2
+        optionsTable.create_window(globalWidth/4, i-optionsButtonSpaceHalf, window=optionsTableFrames1[j])
+        if j <= 3:
+            optionsButtonSpaceHalf = optionsButtonSpace/2 if j <= 1 else -optionsLabelSpace
+            optionsTable.create_window(3*globalWidth/4, i-optionsButtonSpaceHalf, window=optionsTableFrames2[j])
+"""Contenu des Frames"""
+createButton = lambda frame, text, function, value: Button(frame, text=text, size=15, animationType=1, \
+                                                           func=lambda event, v=value: function(event, v))
 """Options Mode de Jeu"""
-optionsModeLabel = Label(optionsSideFrame1, text=h(11)+"Mode de Jeu"+h(11), fg=colour["black"], font=(mainFont, 20))
-optionsModeLabel.grid(row=2, column=0, columnspan=6)
-optionsModeChoice1 = Button(optionsSideFrame1, text="AVEC LA MACHINE", func=lambda event, v=1: optionsMode(event, v), \
-                            size=15, animationType=1)
-optionsModeChoice1.canvas.grid(row=3, column=0, columnspan=6)
-optionsModeChoice2 = Button(optionsSideFrame1, text="À DEUX JOUEURS", func=lambda event, v=0: optionsMode(event, v), \
-                            size=15, animationType=1)
-optionsModeChoice2.canvas.grid(row=4, column=0, columnspan=6)
-optionsSideFrame1.grid_rowconfigure(5, minsize=15)
+optionsModeChoice = [0 for i in range(2)]
+optionsModeTexts = ["AVEC LA MACHINE", "À DEUX JOUEURS"]
+optionsModeValues = [1, 0]
+for j in range(2):
+    optionsModeChoice[j] = createButton(optionsTableFrames1[1], optionsModeTexts[j], \
+                                        optionsMode, optionsModeValues[j])
+    optionsModeChoice[j].canvas.grid(row=j, column=0)
 """Options Couleur de son Jeton"""
-optionsPlayerLabel = Label(optionsSideFrame1, text=h(8)+"Couleur du Jeton"+h(8), fg=colour["black"],font=(mainFont, 20))
-optionsPlayerLabel.grid(row=6, column=0, columnspan=6)
-optionsPlayerChoice1 = Button(optionsSideFrame1, text="BLANC", func=lambda event, v=-1: optionsPlayer(event, v), \
-                              size=15, animationType=1)
-optionsPlayerChoice1.canvas.grid(row=7, column=0, columnspan=6)
-optionsPlayerChoice2 = Button(optionsSideFrame1, text="NOIR", func=lambda event, v=1: optionsPlayer(event, v), \
-                              size=15, animationType=1)
-optionsPlayerChoice2.canvas.grid(row=8, column=0, columnspan=6)
-optionsSideFrame1.grid_rowconfigure(9, minsize=15)
+optionsPlayerChoice = [0 for i in range(2)]
+optionsPlayerTexts = ["BLANC", "NOIR"]
+optionsPlayerValues = [-1, 1]
+for j in range(2):
+    optionsPlayerChoice[j] = createButton(optionsTableFrames1[3], optionsPlayerTexts[j], \
+                                          optionsPlayer, optionsPlayerValues[j])
+    optionsPlayerChoice[j].canvas.grid(row=j, column=0)
 """Options Difficulté"""
-optionsDifficultyLabel = Label(optionsSideFrame1, text=h(12)+"Difficulté"+h(12), fg=colour["black"],font=(mainFont, 20))
-optionsDifficultyLabel.grid(row=10, column=0, columnspan=6)
-optionsDifficultyChoice1 = Button(optionsSideFrame1, text="0", func=lambda event, v=0: optionsDifficulty(event, v), \
-                                  size=15, animationType=1)
-optionsDifficultyChoice1.canvas.grid(row=11, column=0, columnspan=1)
-optionsDifficultyChoice2 = Button(optionsSideFrame1, text="1", func=lambda event, v=1: optionsDifficulty(event, v), \
-                                  size=15, animationType=1)
-optionsDifficultyChoice2.canvas.grid(row=11, column=1, columnspan=1)
-optionsDifficultyChoice3 = Button(optionsSideFrame1, text="2", func=lambda event, v=2: optionsDifficulty(event, v), \
-                                  size=15, animationType=1)
-optionsDifficultyChoice3.canvas.grid(row=11, column=2, columnspan=1)
-optionsDifficultyChoice4 = Button(optionsSideFrame1, text="3", func=lambda event, v=3: optionsDifficulty(event, v), \
-                                  size=15, animationType=1)
-optionsDifficultyChoice4.canvas.grid(row=11, column=3, columnspan=1)
-optionsDifficultyChoice5 = Button(optionsSideFrame1, text="4", func=lambda event, v=4: optionsDifficulty(event, v), \
-                                  size=15, animationType=1)
-optionsDifficultyChoice5.canvas.grid(row=11, column=4, columnspan=1)
-optionsDifficultyChoice6 = Button(optionsSideFrame1, text="+", func=lambda event, v=5: optionsDifficulty(event, v), \
-                                  size=15, animationType=1)
-optionsDifficultyChoice6.canvas.grid(row=11, column=5, columnspan=1)
-optionsSideFrame1.grid_rowconfigure(12, minsize=15)
+optionsDifficultyChoice = [0 for i in range(6)]
+optionsDifficultyTexts = [" 0 ", " 1 ", " 2 ", " 3 ", " 4 ", " + "]
+for j in range(6):
+    optionsDifficultyChoice[j] = createButton(optionsTableFrames1[5], optionsDifficultyTexts[j], optionsDifficulty, j)
+    optionsDifficultyChoice[j].canvas.grid(row=0, column=j)
 """Options Esthétiques"""
-optionsGridLabel = Label(optionsSideFrame1,text=h(6)+"Couleurs de la Grille"+h(6),fg=colour["black"],font=(mainFont,20))
-optionsGridLabel.grid(row=13, column=0, columnspan=6)
-optionsGridChoice1 = Button(optionsSideFrame1, text="A", func=lambda event, v=0: optionsGrid(event, v), \
-                            size=15, animationType=1)
-optionsGridChoice1.canvas.grid(row=14, column=0, columnspan=1)
-optionsGridChoice2 = Button(optionsSideFrame1, text="B", func=lambda event, v=1: optionsGrid(event, v), \
-                            size=15, animationType=1)
-optionsGridChoice2.canvas.grid(row=14, column=1, columnspan=1)
-optionsGridChoice3 = Button(optionsSideFrame1, text="C", func=lambda event, v=2: optionsGrid(event, v), \
-                            size=15, animationType=1)
-optionsGridChoice3.canvas.grid(row=14, column=2, columnspan=1)
-optionsGridChoice4 = Button(optionsSideFrame1, text="D", func=lambda event, v=3: optionsGrid(event, v), \
-                            size=15, animationType=1)
-optionsGridChoice4.canvas.grid(row=14, column=3, columnspan=1)
-optionsGridChoice5 = Button(optionsSideFrame1, text="E", func=lambda event, v=4: optionsGrid(event, v), \
-                            size=15, animationType=1)
-optionsGridChoice5.canvas.grid(row=14, column=4, columnspan=1)
-optionsGridChoice6 = Button(optionsSideFrame1, text="F", func=lambda event, v=5: optionsGrid(event, v), \
-                            size=15, animationType=1)
-optionsGridChoice6.canvas.grid(row=14, column=5, columnspan=1)
-optionsSideFrame2.grid_rowconfigure(0, minsize=(48+30))
+optionsGridChoice = [0 for i in range(5)]
+optionsGridTexts = [" A ", " B ", " C ", " D ", " E "]
+for j in range(5):
+    optionsGridChoice[j] = createButton(optionsTableFrames1[7], optionsGridTexts[j], optionsGrid, j)
+    optionsGridChoice[j].canvas.grid(row=0, column=j)
 """Options Statistiques"""
-optionsStatsLabel = Label(optionsSideFrame2, text=h(11)+"Statistiques"+h(11), fg=colour["black"], font=(mainFont, 20))
-optionsStatsLabel.grid(row=1)
-optionsStatsChoice1 = Button(optionsSideFrame2, text="SUPPRIMER LES DONNÉES", func=optionsStats, \
-                             size=15, animationType=1)
-optionsStatsChoice1.canvas.grid(row=2)
-optionsSideFrame2.grid_rowconfigure(3, minsize=15*1.85+1+15)
+optionsStatsChoice1=Button(optionsTableFrames2[1],text="SUPPRIMER LES DONNÉES",func=optionsStats,size=15,animationType=1)
+optionsStatsChoice1.canvas.grid(row=0)
+optionsStatsChoice2=Button(optionsTableFrames2[1],text="",func=nothing,size=15,animationType=1)
+optionsStatsChoice2.canvas.grid(row=1)
 """Aperçu des couleurs"""
-optionsPreviewLabel = Label(optionsSideFrame2, text=h(14)+"Aperçu"+h(14), fg=colour["black"], font=(mainFont, 20))
-optionsPreviewLabel.grid(row=4)
-optionsSideFrame2.grid_rowconfigure(5, minsize=20)
-optionsPreviewChoice1 = BoardPreview(optionsSideFrame2)
-optionsPreviewChoice1.frame.grid(row=6)
+optionsPreviewChoice1 = BoardPreview(optionsTableFrames2[3])
+optionsPreviewChoice1.frame.grid(row=0)
+"""Chargement des paramètres sauvegardés"""
 options = readFile("options", emptyOptions)
 
 """-----------------------------------------------------STATS--------------------------------------------------------"""
@@ -693,10 +716,14 @@ statsTitle.grid(row=0, column=0)
 statsTopFrame.grid_rowconfigure(0, minsize=statsTopFrameHeight)
 statsTopFrame.grid_columnconfigure(0, minsize=int(globalWidth/2))
 """Barre de Recherche"""
+entryTextColour = mergeColour(colour["whitePlayer"], colour["blackPlayer"], 0.4)
+entryHighlightBgColour = mergeColour(colour["whitePlayer"], colour["white"], 0.6)
+entryHighlightFgColour = mergeColour(colour["whitePlayer"], colour["black"], 0.6)
 statsSearch = Entry(statsTopFrame, font=(mainFont, 15), width=int(globalWidth/30), \
                     highlightbackground=mergeColour(colour["blackPlayer"], colour["whitePlayer"], 0), \
-                    background=mergeColour(colour["blackPlayer"], colour["whitePlayer"], 0.925), \
-                    highlightthickness=2, relief=FLAT)
+                    background=mergeColour(colour["blackPlayer"], colour["whitePlayer"], 0.92), \
+                    highlightthickness=2, relief=FLAT, fg=entryTextColour, \
+                    selectbackground=entryHighlightBgColour, selectforeground=entryHighlightFgColour)
 statsSearch.grid(row=0, column=1)
 statsTopFrame.grid_rowconfigure(0, minsize=statsTopFrameHeight)
 statsTopFrame.grid_columnconfigure(1, minsize=int(globalWidth/2))
@@ -717,7 +744,8 @@ for i in range(6):
     xx = listSum(statsTableSize, 0, i) - statsTableSize[i]/2
     tt = statsTableHeaders[i]
     ww = statsTableSize[i]
-    statsTable.create_text(xx, statsTableHeaderSize/2, text=tt, width=ww, font=(mainFont, 14), fill= colour["black"])
+    statsTable.create_text(xx, statsTableHeaderSize/2, text=tt, width=ww, \
+                           font=(mainFont, 14, "bold"), fill=colour["black"])
 """Canevas Contenant une Frame (pour le contenu du tableau)"""
 statsTableHardCodedValues = (3, 1.75, 4, 6, 7, 4.5+1)
 statsTableFrameSize = (globalWidth-statsTableHardCodedValues[0]*statsTableLineWidth-1, \

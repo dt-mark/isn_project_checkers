@@ -1,6 +1,7 @@
 from tkinter import *
 
 from constants import *
+import optionvars
 
 window = Tk()
 
