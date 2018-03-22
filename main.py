@@ -1,4 +1,4 @@
-from tkinter import *
+from tkinter import * 
 from threading import *
 from winsound import *
 import webbrowser, random, time, os
