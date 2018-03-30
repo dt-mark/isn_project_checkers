@@ -68,25 +68,25 @@ class Button:
         if self.disabled:
             self.canvas.itemconfig(self.canvas.label, \
                                    fill=mergeColour(RGBToHex((0, 0, 0)), RGBToHex((255, 255, 255)), 0.75))
-            return
-        if self.animationType == 0:
-            RGBcolourA = mergeColour(RGBToHex((75, 75, 75)), RGBToHex((255, 255, 255)), self.canvas.colourA)
-            RGBcolourB = mergeColour(RGBToHex((215, 215, 215)), RGBToHex((255, 255, 255)), self.canvas.colourA)
-            self.canvas.arrowSpace = lerp(self.canvas.arrowSpace, 0, 0.2)
-            ax1 = self.ww / 2 + (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
-            ax2 = self.ww / 2 - (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
-            self.canvas.itemconfig(self.arrow1, outline=RGBcolourA)
-            self.canvas.itemconfig(self.arrow2, outline=RGBcolourA)
-            self.canvas.configure(bg=RGBcolourB)
-            self.canvas.coords(self.arrow1, ax1 + 10, self.hh / 2, ax1, 0 + 5, ax1, self.hh - 5)
-            self.canvas.coords(self.arrow2, ax2 - 10, self.hh / 2, ax2, 0 + 5, ax2, self.hh - 5)
-            self.canvas.size = lerp(self.canvas.size, self.size, 0.2)
-        if self.animationType == 1:
-            RGBcolourT = mergeColour(self.canvas.colour, RGBToHex((255, 255, 255)), self.canvas.colourT)
-            self.canvas.itemconfig(self.canvas.label, fill=RGBcolourT)
-            self.canvas.size = lerp(self.canvas.size, self.canvas.aimedSize, 0.2)
-        self.canvas.style = (self.canvas.font, int(self.canvas.size), self.canvas.tag)
-        if self.counter <= 100: self.canvas.itemconfig(self.canvas.label, font=self.canvas.style)
+        else:
+            if self.animationType == 0:
+                RGBcolourA = mergeColour(RGBToHex((75, 75, 75)), RGBToHex((255, 255, 255)), self.canvas.colourA)
+                RGBcolourB = mergeColour(RGBToHex((215, 215, 215)), RGBToHex((255, 255, 255)), self.canvas.colourA)
+                self.canvas.arrowSpace = lerp(self.canvas.arrowSpace, 0, 0.2)
+                ax1 = self.ww / 2 + (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
+                ax2 = self.ww / 2 - (len(self.text) / 2 + self.canvas.arrowSpace) * self.size
+                self.canvas.itemconfig(self.arrow1, outline=RGBcolourA)
+                self.canvas.itemconfig(self.arrow2, outline=RGBcolourA)
+                self.canvas.configure(bg=RGBcolourB)
+                self.canvas.coords(self.arrow1, ax1 + 10, self.hh / 2, ax1, 0 + 5, ax1, self.hh - 5)
+                self.canvas.coords(self.arrow2, ax2 - 10, self.hh / 2, ax2, 0 + 5, ax2, self.hh - 5)
+                self.canvas.size = lerp(self.canvas.size, self.size, 0.2)
+            if self.animationType == 1:
+                RGBcolourT = mergeColour(self.canvas.colour, RGBToHex((255, 255, 255)), self.canvas.colourT)
+                self.canvas.itemconfig(self.canvas.label, fill=RGBcolourT)
+                self.canvas.size = lerp(self.canvas.size, self.canvas.aimedSize, 0.2)
+            self.canvas.style = (self.canvas.font, int(self.canvas.size), self.canvas.tag)
+            if self.counter <= 100: self.canvas.itemconfig(self.canvas.label, font=self.canvas.style)
         self.canvas.after(self.refreshRate, self.update)
 
 """-----------------------------------------------------POPUP--------------------------------------------------------"""
@@ -329,6 +329,8 @@ def gameRestart(event):
     reset()
 def gameQuit(event):
     reset()
+    gameRestart(0)
+    menuOptionsButton.disabled = False
     layoutCreate(menuFrame)
 def gameCancel(event):
     global winner
@@ -394,6 +396,9 @@ def statsMore(event, name):
 def info(event):
     webbrowser.open(os.path.abspath("_instructions.pdf"))
 def back(event):
+    global currentFrame
+    if currentFrame == gameFrame:
+        menuOptionsButton.disabled = True
     layoutCreate(menuFrame)
 def nothing(event):
     return
@@ -405,16 +410,12 @@ def layoutCreate(frame):
     layoutDelete(allBut=frame)
     global currentFrame
     currentFrame = frame
-    if currentFrame == gameFrame:
-        gameRestart(0)
-        backIcon.canvas.place_forget()
+    backIcon.canvas.place(relx=0, x=20, y=20, anchor=NW)
     if currentFrame == optionsFrame:
         options = readFile("options", emptyOptions)
         updateOptionsButtons()
-        backIcon.canvas.place(relx=0, x=20, y=20, anchor=NW)
     if currentFrame == statsFrame:
         updateStatsValues()
-        backIcon.canvas.place(relx=0, x=20, y=20, anchor=NW)
     if currentFrame == menuFrame:
         backIcon.canvas.place_forget()
 def layoutDelete(frame=None, allBut=None):
@@ -548,16 +549,13 @@ gameSideFrame1 = Frame(gameFrame)
 gameSideFrame1.grid(row=1, column=0, sticky="E")
 gameSideFrame2 = Frame(gameFrame)
 gameSideFrame2.grid(row=1, column=1, sticky="W")
-"""Titre"""
-gameTitle = Label(gameSideFrame1, text="LE JEU DE DAMES", font=(mainFont, 25), height=1)
-gameTitle.grid(row=0, column=0)
+"""Espace vide avant le board"""
+gameSideFrame1.grid_rowconfigure(0, minsize=21.5*2)
 """Planche de jeu"""
 gameBoard = Frame(gameSideFrame1, borderwidth=5, bg="black")
 gameBoard.grid(row=1, column=0)
 #Board(gameBoard, gSize, bSize)
-"""Texte indiquant quel joueur doit jouer"""
-gameTurnText = Label(gameSideFrame1, textvariable=turn, font=(mainFont, 15))
-#gameTurnText.grid(row=2, column=0)
+"""Espace vide après le board"""
 gameSideFrame1.grid_rowconfigure(2, minsize=15*2)
 """Planche de score"""
 gameScoreBoard = ScoreBoard(gameSideFrame2, (300, 150), (300, 100), 6)
@@ -716,14 +714,19 @@ statsTitle.grid(row=0, column=0)
 statsTopFrame.grid_rowconfigure(0, minsize=statsTopFrameHeight)
 statsTopFrame.grid_columnconfigure(0, minsize=int(globalWidth/2))
 """Barre de Recherche"""
+def caps(event, t):
+    cText = t.get()
+    t.delete(0, END)
+    t.insert(0, cText.upper())
 entryTextColour = mergeColour(colour["whitePlayer"], colour["blackPlayer"], 0.4)
 entryHighlightBgColour = mergeColour(colour["whitePlayer"], colour["white"], 0.6)
 entryHighlightFgColour = mergeColour(colour["whitePlayer"], colour["black"], 0.6)
 statsSearch = Entry(statsTopFrame, font=(mainFont, 15), width=int(globalWidth/30), \
                     highlightbackground=mergeColour(colour["blackPlayer"], colour["whitePlayer"], 0), \
-                    background=mergeColour(colour["blackPlayer"], colour["whitePlayer"], 0.92), \
+                    background=mergeColour(colour["blackPlayer"], colour["whitePlayer"], 0.98), \
                     highlightthickness=2, relief=FLAT, fg=entryTextColour, \
                     selectbackground=entryHighlightBgColour, selectforeground=entryHighlightFgColour)
+statsSearch.bind("<KeyRelease>", lambda event, t=statsSearch: caps(event, t))
 statsSearch.grid(row=0, column=1)
 statsTopFrame.grid_rowconfigure(0, minsize=statsTopFrameHeight)
 statsTopFrame.grid_columnconfigure(1, minsize=int(globalWidth/2))
