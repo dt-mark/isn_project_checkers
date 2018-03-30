@@ -162,7 +162,7 @@ class Popup:
             self.resultsPie = PieChart(self.canvas, items=resultsPieItems)
             self.resultsPie.canvas.grid(row=2, column=0, columnspan=1)
             modesPieItems = [("contre l'ia", stats[text]["ai"], colour["green"]), \
-                             ("contre l'humain", stats[text]["notai"], colour["blue"]), stats[text]["games"]]
+                             ("contre un humain", stats[text]["notai"], colour["blue"]), stats[text]["games"]]
             self.modesPie = PieChart(self.canvas, items=modesPieItems)
             self.modesPie.canvas.grid(row=2, column=1, columnspan=1)
             self.canvas.grid_rowconfigure(3, minsize=50)
