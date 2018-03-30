@@ -131,7 +131,7 @@ class Counter:
     #https://stackoverflow.com/questions/35088139/how-to-make-a-thread-safe-global-counter-in-python
     def __init__(self, initialValue=0):
         self.value = initialValue
-        self.threading.lock = threading.Lock()
+        self.lock = threading.Lock()
     def increment(self):
         with self.threading.lock:
             self.value += 1
@@ -152,16 +152,11 @@ class Tree:
             path += beginning+str(i)+"]"
         print(path)
         return eval(path)
-root = Tree()
-root.add([(0, 3),(2, 3), (4, 3), (6, 3), (8, 3)])
-root.node[0].add([(4, 5)])
-
-print(root.get(0))
     
 """-----------------------------------------------------SOUND--------------------------------------------------------"""
-class Sound(Thread):
+class Sound(threading.Thread):
     def __init__(self, _name):
-        Thread.__init__(self)
+        threading.Thread.__init__(self)
         self.name = _name
         PlaySound(self.name, SND_FILENAME | SND_ASYNC)
     def run(self):
@@ -625,7 +620,7 @@ def aiMove(playerToMove, targetMove, combo=0):
 Board(gameBoard, gSize, bSize)
 
 #Son
-threadLock = Lock()
+threadLock = threading.Lock()
 
 #Compteur
 counter = Counter()
