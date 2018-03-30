@@ -152,6 +152,12 @@ class Tree:
             path += beginning+str(i)+"]"
         print(path)
         return eval(path)
+root = Tree()
+root.add([(0, 3),(2, 3), (4, 3), (6, 3), (8, 3)])
+root.node[0].add([(4, 5)])
+
+print(root.get(0))
+    
 """-----------------------------------------------------SOUND--------------------------------------------------------"""
 class Sound(Thread):
     def __init__(self, _name):
