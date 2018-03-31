@@ -109,6 +109,13 @@ def intToString(integer):
     else:
         return str(integer)
 
+"""Fonction qui convertit un nombre de secondes en un string formatté indiquant une durée"""
+def timeFormat(sec):
+    s = sec%60
+    m = (sec/60)%60
+    h = ((sec/60)/60)
+    return intToString(h) + ":" + intToString(m) + ":" + intToString(s)
+
 """Fonction qui coupe un string trop long à N caractères"""
 def cutString(str, c):
     if len(str) >= c:

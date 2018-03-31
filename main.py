@@ -1,7 +1,6 @@
 from tkinter import *
-from threading import *
 from winsound import *
-import webbrowser, random, time, os
+import webbrowser, threading, random, time, os
 
 from constants import *
 from globalvars import *
@@ -131,10 +130,12 @@ class Counter:
     #https://stackoverflow.com/questions/35088139/how-to-make-a-thread-safe-global-counter-in-python
     def __init__(self, initialValue=0):
         self.value = initialValue
-        self.lock = Lock()
+        self.lock = threading.Lock()
+        self.startTime = time.time()
     def increment(self):
         with self.lock:
-            self.value += 1
+            self.value += time.time() - self.startTime
+            self.startTime = time.time()
 
 """-----------------------------------------------------TREE---------------------------------------------------------"""
 class Tree:
@@ -150,19 +151,19 @@ class Tree:
         for j, i in enumerate(args):
             beginning = ".node[" if len(args) > 1 and (j != len(args)-1) else ".nodeData["
             path += beginning+str(i)+"]"
-        print(path)
         return eval(path)
+
 """-----------------------------------------------------SOUND--------------------------------------------------------"""
-class Sound(Thread):
+class Sound(threading.Thread):
     def __init__(self, _name):
-        Thread.__init__(self)
+        threading.Thread.__init__(self)
         self.name = _name
         PlaySound(self.name, SND_FILENAME | SND_ASYNC)
     def run(self):
         # Get lock to synchronize threads
-        threadLock.acquire()
+        threadLock.threading.acquire()
         # Free lock to release next thread
-        threadLock.release()
+        threadLock.threading.release()
 
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
@@ -173,19 +174,18 @@ def updateGame():
     global aiState, aiCoords, aiInCombo, gameEnd
     # Si la variable restart == 1, on reset le game
     if restart.get() == 1: resetGame()
-    # On check quels joueurs peuvent bouger/manger et les colorier
-    canMove()
-    # On incrémente le compteur global
-    currentFrame = getCurrentFrame()
-    if currentFrame == gameFrame:
-        counter.increment()
-    # Si l'IA attend, la relancer
-    if aiState == None:
-        if aiCoords == None or aiCoords == (0, 0):
-            aiCoords = aiMoveChoice()
-        aiState = aiMove(aiCoords[0], aiCoords[1], combo=aiInCombo)
-    # Si c'est la fin du jeu, on arrête tout
-    if gameEnd: return
+    if not gameEnd:
+        # On check quels joueurs peuvent bouger/manger et les colorier
+        canMove()
+        # On incrémente le compteur global
+        currentFrame = getCurrentFrame()
+        if currentFrame == gameFrame:
+            counter.increment()
+        # Si l'IA attend, la relancer
+        if aiState == None:
+            if aiCoords == None or aiCoords == (0, 0):
+                aiCoords = aiMoveChoice()
+            aiState = aiMove(aiCoords[0], aiCoords[1], combo=aiInCombo)
     # Se ré-appeler pour mettre à jour
     window.after(refreshRate, updateGame)
 
@@ -193,7 +193,7 @@ def updateGame():
 def resetGame():
     global b, players, scoreDisplay, onePlayerCanEat, selectedPlayer, \
            player, nothingHappened, highlightStuck, scorePlayer, \
-           aiCoords, aiState, aiInCombo, moves, initialCount
+           aiCoords, aiState, aiInCombo, moves, initialCount, gameEnd
     # On loop dans la grille
     for j in range(gSize):
         for i in range(gSize):
@@ -219,12 +219,14 @@ def resetGame():
     scorePlayer = {-1: [0 for i in range(gSize * 2 + 1)], 1: [0 for i in range(gSize * 2 + 1)]}
     counter.value = 0
     initialCount = 0
-    aiState = True if optionvars.humanPlayer == player else None
+    aiState = None
+    if (optionvars.humanPlayer == player and optionvars.ai == 0): aiState = True
     aiCoords = (0, 0)
     aiInCombo = 0
     moves[-1].set(0)
     moves[+1].set(0)
-    time.set(0)
+    globalTime.set(0)
+    gameEnd = False
     # Recréer une table de jeu
     Board(gameBoard, gSize, bSize)
     canMove()
@@ -264,23 +266,26 @@ def victory():
     global nothingHappened, winner, gameEnd
     if gameEnd: return
     # Sauvegarder le temps
-    time.set(counter.value)
+    globalTime.set(counter.value)
     # Si il ne s'est rien passé depuis 25 tours,
     if nothingHappened >= 25:
         # Déclarer égalité
-        print("DRAW, no one won, no one lost")
+        endStr = "Il ne s'est rien passé depuis 25 tours\nIl y a donc égalité\n"
+        # Créer un popup de fin de jeu
+        Popup(text="La partie est terminée!", subtext=endStr, type=1, twoPlayers="draw")
         gameEnd = True
     # On check pour chaque joueur
     for _player in [-1, 1]:
         # S'il est bloqué ou s'il a plus de jetons,
         if isBlocked(_player) or isDead(_player):
             # Le gagnant est l'autre joueur
-            winner.set(-_player)
+            if optionvars.ai == 0: winner.set(-_player)
+            else: winner.set(_player)
             # Selon le mode de jeu, générer un texte de fin de jeu
             if optionvars.ai == 1:
                 endStr = "{0} gagné\n{1} perdu".format(
-                    "Vous avez" if winner.get() == optionvars.humanPlayer else "La machine a", \
-                    "La machine a" if winner.get() == optionvars.humanPlayer else "Vous avez", )
+                    "Vous avez" if -winner.get() == optionvars.humanPlayer else "La machine a", \
+                    "La machine a" if -winner.get() == optionvars.humanPlayer else "Vous avez", )
             else:
                 endStr = "Le joueur {0} a gagné\nLe joueur {1} a perdu".format(
                     "BLANC" if winner.get() == -1 else "NOIR", \
@@ -455,7 +460,7 @@ def eat(i, j, player, playerMovement):
              ePlayerType, _score=1)
     # Position où le mini canevas va aller
     playersPerRow, playersPerColumn = 5, 4
-    hardCodedCoordinates = (460, 190)
+    hardCodedCoordinates = (460, 186)
     scorePlayersSpacingX = (gameScoreBoard.halfScoreBoardSize - \
                             ((gameScoreBoard.scoreBoardBorder * 2) + (playersPerRow * playerCanvasSize / 2))) \
                            / (playersPerRow + 1)
@@ -489,7 +494,9 @@ def eat(i, j, player, playerMovement):
 """Fonction Principale"""
 def click(event, i, j):
     global player, selectedPlayer, highlightStuck, onePlayerCanEat, nothingHappened, onePlayerCanMove, \
-           initialCount, aiCoords, aiState, aiInCombo
+           initialCount, aiCoords, aiState, aiInCombo, gameEnd
+    # On quitte si c'est la fin du jeu
+    if gameEnd: return
     # On quitte si c'est l'IA qui joue et qu'on a cliqué
     if player == -optionvars.humanPlayer and optionvars.ai == 1 and event != None: return
     aiInCombo = 0
@@ -619,11 +626,11 @@ def aiMove(playerToMove, targetMove, combo=0):
 Board(gameBoard, gSize, bSize)
 
 #Son
-threadLock = Lock()
+threadLock = threading.Lock()
 
 #Compteur
-counter = Counter()
 initialCount = 0
+counter = Counter()
 
 #IA
 if optionvars.ai == 1 and player != optionvars.humanPlayer:
@@ -642,4 +649,3 @@ center(window, -1)
 
 #Éxécuter
 window.mainloop()
-#thing

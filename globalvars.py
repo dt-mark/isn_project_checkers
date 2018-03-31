@@ -27,7 +27,8 @@ turn.set("c'est au joueur {0} de jouer".format("BLANC" if player == -1 else "NOI
 highlightStuck = False
 nothingHappened = 0
 
-aiState = True if optionvars.humanPlayer == player else None
+aiState = None
+if (optionvars.humanPlayer == player and optionvars.ai == 0): aiState = True
 aiCoords = (0, 0)
 aiInCombo = 0
 gameEnd = False
@@ -38,11 +39,8 @@ winner.set(-1)
 moves = {-1: IntVar(), 1: IntVar()}
 moves[-1].set(0)
 moves[+1].set(0)
-time = IntVar()
-time.set(0)
+globalTime = IntVar()
+globalTime.set(0)
 
 restart = IntVar()
 restart.set(0)
-def reset():
-    global scoreDisplay
-    restart.set(1)

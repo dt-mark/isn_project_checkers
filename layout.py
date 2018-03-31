@@ -2,7 +2,7 @@ from tkinter import *
 from tkinter import ttk
 from math import *
 from collections import OrderedDict
-import os
+import os, gc
 
 from constants import *
 from globalvars import *
@@ -35,11 +35,12 @@ class Button:
         self.canvas.bind("<1>", lambda event, func=self.func, anim=self.animationType: self.buttonPress(event, func, anim))
         self.canvas.bind("<Enter>", lambda event, t=+1, anim=self.animationType: self.buttonMouse(event, t, anim))
         self.canvas.bind("<Leave>", lambda event, t=-1, anim=self.animationType: self.buttonMouse(event, t, anim))
-        ax1, ax2 = self.ww / 2 + (len(self.text) / 2) * self.size, self.ww / 2 - (len(self.text) / 2) * self.size
-        self.arrow1 = self.canvas.create_polygon(ax1 + 10, self.hh / 2, ax1, 0 + 5, ax1, self.hh - 5, fill="white",
-                                                 width=2)
-        self.arrow2 = self.canvas.create_polygon(ax2 - 10, self.hh / 2, ax2, 0 + 5, ax2, self.hh - 5, fill="white",
-                                                 width=2)
+        if self.animationType == 0:
+            ax1, ax2 = self.ww / 2 + (len(self.text) / 2) * self.size, self.ww / 2 - (len(self.text) / 2) * self.size
+            self.arrow1 = self.canvas.create_polygon(ax1 + 10, self.hh / 2, ax1, 0 + 5, ax1, self.hh - 5, \
+                                                     fill="white", width=2)
+            self.arrow2 = self.canvas.create_polygon(ax2 - 10, self.hh / 2, ax2, 0 + 5, ax2, self.hh - 5, \
+                                                     fill="white", width=2)
         self.counter = 0
         self.update()
     def buttonMouse(self, event, enterOrLeave, anim):
@@ -63,6 +64,10 @@ class Button:
             caller.size -= 4
         #Sound(sound["click"])
         func(event)
+    def changeFunction(self, func):
+        self.func = func
+        self.canvas.bind("<1>",
+                         lambda event, func=self.func, anim=self.animationType: self.buttonPress(event, func, anim))
     def update(self):
         self.counter += 1
         if self.disabled:
@@ -112,28 +117,29 @@ class Popup:
             self.button1.canvas.grid(row=2, column=0)
             self.button2.canvas.grid(row=2, column=1)
         elif type == 1:
-            self.subsubtext = "\nVeuillez entrer vo{0} nom{1} ci-dessous:". format("s" if twoPlayers else "tre", \
-                                                                                     "s" if twoPlayers else "")
-            self.subsublabel = Label(self.canvas, text=self.subsubtext, font=(mainFont, 12), fg=colour["blackPlayer"])
-            self.subsublabel.grid(row=2, column=0, columnspan=2)
-            entryTextColour = mergeColour(colour["whitePlayer"], colour["blackPlayer"], 0.4)
-            entryHighlightBgColour = mergeColour(colour["whitePlayer"], colour["white"], 0.6)
-            entryHighlightFgColour = mergeColour(colour["whitePlayer"], colour["black"], 0.6)
-            entry1Text = "nom du joueur {0}". format("blanc" if twoPlayers else "")
-            self.entry1 = Entry(self.canvas, font=(mainFont, 10), fg=entryTextColour, justify=CENTER, relief=FLAT, \
-                                selectbackground=entryHighlightBgColour, selectforeground=entryHighlightFgColour)
-            self.entry1.insert(0, entry1Text)
-            self.entry1.bind("<FocusIn>", lambda event, t=entry1Text: self.entryFocusIn(event, t))
-            self.entry1.bind("<FocusOut>", lambda event, t=entry1Text: self.entryFocusOut(event, t))
-            self.entry1.grid(row=3, column=0, columnspan=2)
-            if twoPlayers:
-                entry2Text = "nom du joueur noir"
-                self.entry2 = Entry(self.canvas, font=(mainFont, 10), fg=entryTextColour, justify=CENTER, relief=FLAT, \
+            if twoPlayers != "draw":
+                self.subsubtext = "\nVeuillez entrer vo{0} nom{1} ci-dessous:". format("s" if twoPlayers else "tre", \
+                                                                                         "s" if twoPlayers else "")
+                self.subsublabel = Label(self.canvas, text=self.subsubtext, font=(mainFont, 12), fg=colour["blackPlayer"])
+                self.subsublabel.grid(row=2, column=0, columnspan=2)
+                entryTextColour = mergeColour(colour["whitePlayer"], colour["blackPlayer"], 0.4)
+                entryHighlightBgColour = mergeColour(colour["whitePlayer"], colour["white"], 0.6)
+                entryHighlightFgColour = mergeColour(colour["whitePlayer"], colour["black"], 0.6)
+                entry1Text = "nom du joueur {0}". format("blanc" if twoPlayers else "")
+                self.entry1 = Entry(self.canvas, font=(mainFont, 10), fg=entryTextColour, justify=CENTER, relief=FLAT, \
                                     selectbackground=entryHighlightBgColour, selectforeground=entryHighlightFgColour)
-                self.entry2.insert(0, entry2Text)
-                self.entry2.bind("<FocusIn>", lambda event, t=entry2Text: self.entryFocusIn(event, t))
-                self.entry2.bind("<FocusOut>", lambda event, t=entry2Text: self.entryFocusOut(event, t))
-                self.entry2.grid(row=4, column=0, columnspan=2)
+                self.entry1.insert(0, entry1Text)
+                self.entry1.bind("<FocusIn>", lambda event, t=entry1Text: self.entryFocusIn(event, t))
+                self.entry1.bind("<FocusOut>", lambda event, t=entry1Text: self.entryFocusOut(event, t))
+                self.entry1.grid(row=3, column=0, columnspan=2)
+                if twoPlayers:
+                    entry2Text = "nom du joueur noir"
+                    self.entry2 = Entry(self.canvas, font=(mainFont, 10), fg=entryTextColour, justify=CENTER, relief=FLAT, \
+                                        selectbackground=entryHighlightBgColour, selectforeground=entryHighlightFgColour)
+                    self.entry2.insert(0, entry2Text)
+                    self.entry2.bind("<FocusIn>", lambda event, t=entry2Text: self.entryFocusIn(event, t))
+                    self.entry2.bind("<FocusOut>", lambda event, t=entry2Text: self.entryFocusOut(event, t))
+                    self.entry2.grid(row=4, column=0, columnspan=2)
             okFunction = lambda event, g=gameSaveName: self.acceptPopup(event, g)
             self.canvas.grid_rowconfigure(5, minsize=15)
             self.button = Button(self.canvas, text="OK", func=okFunction, size=15, animationType=1)
@@ -172,7 +178,7 @@ class Popup:
             extraLabel("Nombre de parties jouées: ", 1).grid(row=1, column=0, columnspan=2, sticky=E)
             extraLabel(str(stats[text]["games"]), 0).grid(row=1, column=2, columnspan=1, sticky=W)
             extraLabel("Couleur préférée: ", 1).grid(row=2, column=0, columnspan=2, sticky=E)
-            extraLabel(("blanc" if stats[text]["col"] <= 0 else "noir"), 0).grid(row=2, column=2, columnspan=1, sticky=W)
+            extraLabel(("BLANC" if stats[text]["col"] >= 0 else "NOIR"), 0).grid(row=2, column=2, columnspan=1, sticky=W)
             extraLabel("Difficulté la plus jouée: ", 1).grid(row=3, column=0, columnspan=2, sticky=E)
             extraLabel(str(int(stats[text]["diff"]/stats[text]["games"])), 0).grid(row=3, column=2, columnspan=1, sticky=W)
             extraLabel("Nombre total de mouvements: ", 1).grid(row=4, column=0, columnspan=2, sticky=E)
@@ -180,7 +186,7 @@ class Popup:
             extraLabel("Nombre total de captures: ", 1).grid(row=5, column=0, columnspan=2, sticky=E)
             extraLabel(str(stats[text]["eats"]), 0).grid(row=5, column=2, columnspan=1, sticky=W)
             extraLabel("Temps total de jeu: ", 1).grid(row=6, column=0, columnspan=2, sticky=E)
-            extraLabel(str(stats[text]["time"]), 0).grid(row=6, column=2, columnspan=1, sticky=W)
+            extraLabel(timeFormat(stats[text]["time"]), 0).grid(row=6, column=2, columnspan=1, sticky=W)
             self.frame.grid(row=4, column=0, columnspan=2)
             self.canvas.grid_rowconfigure(6, minsize=50)
             okFunction = lambda event, f=nothing: self.acceptPopup(event, f)
@@ -306,6 +312,7 @@ class PieChart:
 
 """------------------------------------------------BOUTONS-DU-MENU---------------------------------------------------"""
 def menuPlay(event):
+    if not menuOptionsButton.disabled: gameRestart(0)
     layoutCreate(gameFrame)
 def menuOptions(event):
     layoutCreate(optionsFrame)
@@ -319,16 +326,15 @@ def menuQuit(event):
 
 """------------------------------------------------BOUTONS-DU-JEU----------------------------------------------------"""
 def gameRestartPopup(event):
-    Popup(text="Voulez-vous redémarrer?", \
+    Popup(text="Voulez-vous redémarrer?", subtext="Vous perdrez la progression de la partie! \n", \
           textOption1="Oui", textOption2="Non", funcOption1=gameRestart, funcOption2=-1)
 def gameQuitPopup(event):
     Popup(text="Voulez-vous quitter?", subtext="Vous perdrez la progression de la partie! \n", \
           textOption1="Oui", textOption2="Non", funcOption1=gameQuit, funcOption2=-1)
 def gameRestart(event):
+    restart.set(1)
     resetCaseColour()
-    reset()
 def gameQuit(event):
-    reset()
     gameRestart(0)
     menuOptionsButton.disabled = False
     layoutCreate(menuFrame)
@@ -337,8 +343,8 @@ def gameCancel(event):
     print("gameCancel")
     #Debug
     if optionvars.ai == 1:
-        endStr = "{0} gagné\n{1} perdu".format("Vous avez" if winner.get() == optionvars.humanPlayer else "La machine a", \
-                                               "La machine a" if winner.get() == optionvars.humanPlayer else "Vous avez",)
+        endStr = "{0} gagné\n{1} perdu".format("Vous avez" if winner.get() != optionvars.humanPlayer else "La machine a", \
+                                               "La machine a" if winner.get() != optionvars.humanPlayer else "Vous avez",)
     else:
         endStr = "Le joueur {0} a gagné\nLe joueur {1} a perdu".format("BLANC" if winner.get() == -1 else "NOIR", \
                                                                        "NOIR" if winner.get() == -1 else "BLANC")
@@ -359,7 +365,7 @@ def gameSaveName(event):
         _col = -1 if i == 0 else 1
         _moves = int(moves[i - (i==0)].get())
         _eats = int(scoreDisplay[i - (i==0)].get())
-        _time = time.get()
+        _time = globalTime.get()
         configStats(file=readFile("stats", emptyStats), name=n.lower(), games=1, wins=_wins, losses=_losses, \
                     ai=optionvars.ai, notai=1-optionvars.ai, diff=optionvars.difficulty, col=_col, \
                     moves=_moves, eats=_eats, time=_time)
@@ -382,7 +388,7 @@ def optionsGrid(event, value):
     resetCaseColour()
     scoreBoardUpdateColours(gameScoreBoard)
 def optionsStats(event):
-    Popup(text="Êtes-vous sûrs de vouloir\nsupprimer les données?", \
+    Popup(text="Êtes-vous sûrs de vouloir\nsupprimer les données?", subtext="Cette action est irréversible!\n", \
           textOption1="Oui", textOption2="Non", funcOption1=deleteStats, funcOption2=-1)
     updateOptionsButtons()
 def deleteStats(event):
@@ -405,18 +411,18 @@ def nothing(event):
 
 """---------------------------------------------CRÉATION-DESTRUCTION-------------------------------------------------"""
 def layoutCreate(frame):
-    global options
+    global options, currentFrame
     frame.pack(padx=windowBorder, pady=windowBorder, fill=BOTH)
     layoutDelete(allBut=frame)
-    global currentFrame
+    gc.collect()
     currentFrame = frame
     backIcon.canvas.place(relx=0, x=20, y=20, anchor=NW)
     if currentFrame == optionsFrame:
-        options = readFile("options", emptyOptions)
         updateOptionsButtons()
     if currentFrame == statsFrame:
         updateStatsValues()
     if currentFrame == menuFrame:
+        changeMenuPlayButtonText()
         backIcon.canvas.place_forget()
 def layoutDelete(frame=None, allBut=None):
     if frame != None:
@@ -429,8 +435,22 @@ def layoutDelete(frame=None, allBut=None):
 
 """-----------------------------------------------AUTRES-FONCTIONS---------------------------------------------------"""
 h = lambda n: " " + "-" * n + " "
+def formatEntryText(event):
+    maxLen = 25
+    t = event.widget
+    cText = t.get()
+    t.delete(0, END)
+    t.insert(0, cText.upper()[:maxLen])
+def changeMenuPlayButtonText():
+    newText = "CONTINUER" if menuOptionsButton.disabled else "JOUER"
+    newW = (len(newText) + 1) * menuPlayButton.size
+    newH =  1.85*menuPlayButton.size
+    menuPlayButton.canvas.config(width=newW)
+    menuPlayButton.canvas.itemconfig(menuPlayButton.canvas.label, text=newText)
+    menuPlayButton.canvas.coords(menuPlayButton.canvas.label, newW / 2, newH / 2)
 def updateOptionsButtons():
     global options
+    options = readFile("options", emptyOptions)
     options["ai"] = optionvars.ai
     options["humanPlayer"] = optionvars.humanPlayer
     options["difficulty"] = optionvars.difficulty
@@ -451,13 +471,22 @@ def updateOptionsButtons():
         for j in range(gSize + 1):
             if case(i, j): optionsPreviewChoice1.g[i][j].configure(bg=colour["black"])
             else: optionsPreviewChoice1.g[i][j].configure(bg=colour["white"])
-def updateStatsValues():
+def updateStatValue(name, row, text):
+    if name[row] == "":
+        name[row] = Label(statsTableFrameC, text=text, font=(mainFont, 15))
+    else:
+        name[row].configure(text=text)
+def updateStatsValues(event=None):
+    entryText = statsSearch.get()
+    if entryText != "": searchPattern = re.compile('^' + entryText if len(entryText) < 2 else entryText)
+    else: searchPattern = re.compile('')
     noStatsValues()
     stats = readFile("stats", emptyStats)
     tempSortedStats = {}
     for i in stats.keys():
-        if i != "": tempSortedStats[i] = (stats[i]["wins"], stats[i]["games"])
-    #t[0] contient un tuple avec le nombre de victoires et le nombre de jeux
+        if i != "" and searchPattern.search(i):
+            tempSortedStats[i] = (stats[i]["wins"], stats[i]["games"])
+    #t[1] contient un tuple avec le nombre de victoires et le nombre de jeux
     tempSortedStats = OrderedDict(sorted(tempSortedStats.items(), reverse=True, key=lambda t: (t[1][0], t[1][0]/t[1][1])))
     sortedStats = {}
     rowNumber = 0
@@ -465,23 +494,25 @@ def updateStatsValues():
         for i in tempSortedStats.keys():
             sortedStats[i] = OrderedDict(stats[i])
             if i != "":
-                statsNames[rowNumber] = Label(statsTableFrameC, text=cutString(i.upper(), 18), font=(mainFont, 15))
-                statsRanks[rowNumber] = Label(statsTableFrameC, text=str(rowNumber + 1), font=(mainFont, 15))
-                statsGames[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["games"], font=(mainFont, 15))
-                statsWins[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["wins"], font=(mainFont, 15))
-                statsLosses[rowNumber] = Label(statsTableFrameC, text=sortedStats[i]["losses"], font=(mainFont, 15))
+                updateStatValue(statsNames, rowNumber, cutString(i.upper(), 18))
+                updateStatValue(statsRanks, rowNumber, str(rowNumber + 1))
+                updateStatValue(statsGames, rowNumber, sortedStats[i]["games"])
+                updateStatValue(statsWins, rowNumber, sortedStats[i]["wins"])
+                updateStatValue(statsLosses, rowNumber, sortedStats[i]["losses"])
                 if sortedStats[i]["games"] != 0:
                     winPercentage[rowNumber] = str(int((sortedStats[i]["wins"] / sortedStats[i]["games"]) * 100)) + "%"
                     lossPercentage[rowNumber] = str(int((sortedStats[i]["losses"] / sortedStats[i]["games"]) * 100)) + "%"
                 else:
                     winPercentage[rowNumber] = "0%"
                     lossPercentage[rowNumber] = "0%"
-                statsWinsP[rowNumber] = Label(statsTableFrameC, text=winPercentage[rowNumber], font=(mainFont, 15))
-                statsLossesP[rowNumber] = Label(statsTableFrameC, text=lossPercentage[rowNumber], font=(mainFont, 15))
+                updateStatValue(statsWinsP, rowNumber, winPercentage[rowNumber])
+                updateStatValue(statsLossesP, rowNumber, lossPercentage[rowNumber])
                 buttonXOffset[rowNumber] = listSum(statsTableSize,0,4)-statsTableHardCodedValues[4]+statsTableSize[5]/2-20
                 buttonYOffset[rowNumber] = (2 * rowNumber + 1) * (statsTableEntryHeight / 2) - 20
                 moreFunc = lambda event, n=i: statsMore(event, n)
-                moreButton[rowNumber] = Button(statsTableFrame, text=">", func=moreFunc, size=20, animationType=1)
+                if moreButton[rowNumber] == "":
+                    moreButton[rowNumber] = Button(statsTableFrame, text=">", func=moreFunc, size=20, animationType=1)
+                else: moreButton[rowNumber].changeFunction(moreFunc)
                 statsNames[rowNumber].grid(row=rowNumber, column=0)
                 statsRanks[rowNumber].grid(row=rowNumber, column=1)
                 statsGames[rowNumber].grid(row=rowNumber, column=2)
@@ -491,15 +522,21 @@ def updateStatsValues():
                 statsLossesP[rowNumber].grid(row=rowNumber, column=6)
                 moreButton[rowNumber].canvas.place(x=buttonXOffset[rowNumber], y=buttonYOffset[rowNumber])
                 rowNumber += 1
+    for i in statsTable.find_withtag("text"):
+        statsTable.itemconfig(i, fill=colour["black"])
+    entryHighlightBgColour = mergeColour(colour["whitePlayer"], colour["white"], 0.6)
+    entryHighlightFgColour = mergeColour(colour["whitePlayer"], colour["black"], 0.6)
+    statsSearch.configure(selectbackground=entryHighlightBgColour, selectforeground=entryHighlightFgColour)
 def noStatsValues():
-    for row in range(len(statsNames)):
-        if statsNames[row] != "": statsNames[row].configure(text="")
-        if statsRanks[row] != "": statsRanks[row].configure(text="")
-        if statsGames[row] != "": statsGames[row].configure(text="")
-        if statsWins[row] != "": statsWins[row].configure(text="")
-        if statsWinsP[row] != "": statsWinsP[row].configure(text="")
-        if statsLosses[row] != "": statsLosses[row].configure(text="")
-        if statsLossesP[row] != "": statsLossesP[row].configure(text="")
+    stats = readFile("stats", emptyStats)
+    for row in range(len(stats.keys())):
+        updateStatValue(statsNames, row, "")
+        updateStatValue(statsRanks, row, "")
+        updateStatValue(statsGames, row, "")
+        updateStatValue(statsWins, row, "")
+        updateStatValue(statsWinsP, row, "")
+        updateStatValue(statsLosses, row, "")
+        updateStatValue(statsLossesP, row, "")
         if moreButton[row] != "": moreButton[row].canvas.place_forget()
 
 """------------------------------------------------------------------------------------------------------------------"""
@@ -714,10 +751,6 @@ statsTitle.grid(row=0, column=0)
 statsTopFrame.grid_rowconfigure(0, minsize=statsTopFrameHeight)
 statsTopFrame.grid_columnconfigure(0, minsize=int(globalWidth/2))
 """Barre de Recherche"""
-def caps(event, t):
-    cText = t.get()
-    t.delete(0, END)
-    t.insert(0, cText.upper())
 entryTextColour = mergeColour(colour["whitePlayer"], colour["blackPlayer"], 0.4)
 entryHighlightBgColour = mergeColour(colour["whitePlayer"], colour["white"], 0.6)
 entryHighlightFgColour = mergeColour(colour["whitePlayer"], colour["black"], 0.6)
@@ -726,7 +759,8 @@ statsSearch = Entry(statsTopFrame, font=(mainFont, 15), width=int(globalWidth/30
                     background=mergeColour(colour["blackPlayer"], colour["whitePlayer"], 0.98), \
                     highlightthickness=2, relief=FLAT, fg=entryTextColour, \
                     selectbackground=entryHighlightBgColour, selectforeground=entryHighlightFgColour)
-statsSearch.bind("<KeyRelease>", lambda event, t=statsSearch: caps(event, t))
+#statsSearch.bind("<KeyRelease>", formatEntryText)
+statsSearch.bind("<KeyRelease>", updateStatsValues)
 statsSearch.grid(row=0, column=1)
 statsTopFrame.grid_rowconfigure(0, minsize=statsTopFrameHeight)
 statsTopFrame.grid_columnconfigure(1, minsize=int(globalWidth/2))
@@ -748,7 +782,7 @@ for i in range(6):
     tt = statsTableHeaders[i]
     ww = statsTableSize[i]
     statsTable.create_text(xx, statsTableHeaderSize/2, text=tt, width=ww, \
-                           font=(mainFont, 14, "bold"), fill=colour["black"])
+                           font=(mainFont, 14, "bold"), fill=colour["black"], tags="text")
 """Canevas Contenant une Frame (pour le contenu du tableau)"""
 statsTableHardCodedValues = (3, 1.75, 4, 6, 7, 4.5+1)
 statsTableFrameSize = (globalWidth-statsTableHardCodedValues[0]*statsTableLineWidth-1, \
