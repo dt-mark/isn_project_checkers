@@ -642,3 +642,4 @@ center(window, -1)
 
 #Éxécuter
 window.mainloop()
+#thing
