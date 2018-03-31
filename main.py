@@ -1,5 +1,5 @@
 from tkinter import *
-from threading import *
+import threading
 from winsound import *
 import webbrowser, random, time, os
 
@@ -131,9 +131,9 @@ class Counter:
     #https://stackoverflow.com/questions/35088139/how-to-make-a-thread-safe-global-counter-in-python
     def __init__(self, initialValue=0):
         self.value = initialValue
-        self.lock = Lock()
+        self.lock = threading.Lock()
     def increment(self):
-        with self.lock:
+        with self.threading.lock:
             self.value += 1
 
 """-----------------------------------------------------TREE---------------------------------------------------------"""
@@ -152,17 +152,19 @@ class Tree:
             path += beginning+str(i)+"]"
         print(path)
         return eval(path)
+   
 """-----------------------------------------------------SOUND--------------------------------------------------------"""
-class Sound(Thread):
+class Sound(threading.Thread):
+
     def __init__(self, _name):
-        Thread.__init__(self)
+        threading.Thread.__init__(self)
         self.name = _name
         PlaySound(self.name, SND_FILENAME | SND_ASYNC)
     def run(self):
         # Get lock to synchronize threads
-        threadLock.acquire()
+        threadLock.threading.acquire()
         # Free lock to release next thread
-        threadLock.release()
+        threadLock.threading.release()
 
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
@@ -619,7 +621,7 @@ def aiMove(playerToMove, targetMove, combo=0):
 Board(gameBoard, gSize, bSize)
 
 #Son
-threadLock = Lock()
+threadLock = threading.Lock()
 
 #Compteur
 counter = Counter()
