@@ -1,3 +1,5 @@
+import optionvars
+
 windowBorder = 50
 globalWidth, globalHeight = 800, 500
 
@@ -24,14 +26,12 @@ colour = {
     "black0": "#%02X%02X%02X" % (160, 100, 0),
     "white1": "#%02X%02X%02X" % (255, 255, 200),
     "black1": "#%02X%02X%02X" % (50, 75, 225),
-    "white2": "#%02X%02X%02X" % (255, 200, 100),
-    "black2": "#%02X%02X%02X" % (50, 75, 255),
-    "white3": "#%02X%02X%02X" % (255, 255, 205),
+    "white2": "#%02X%02X%02X" % (255, 255, 130),
+    "black2": "#%02X%02X%02X" % (100, 23, 125),
+    "white3": "#%02X%02X%02X" % (255, 255, 180),
     "black3": "#%02X%02X%02X" % (255, 100, 150),
     "white4": "#%02X%02X%02X" % (180, 180, 180),
-    "black4": "#%02X%02X%02X" % (99, 23, 125),
-    "white5": "#%02X%02X%02X" % (180, 180, 180),
-    "black5": "#%02X%02X%02X" % (75, 75, 75)
+    "black4": "#%02X%02X%02X" % (75, 75, 75)
 }
 sound = {
     "click":"_menuClicked.wav",
@@ -42,5 +42,5 @@ sound = {
     "deselect":"_playerDeselected.wav"
 }
 
-# "white4": "#%02X%02X%02X" % (255, 255, 130),
-# "black4": "#%02X%02X%02X" % (99, 23, 125),
+colour["white"] = colour["white" + str(optionvars.gColours)]
+colour["black"] = colour["black" + str(optionvars.gColours)]

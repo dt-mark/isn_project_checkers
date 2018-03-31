@@ -2,7 +2,7 @@ from tkinter import *
 from math import *
 
 from constants import *
-from globals import *
+from globalvars import *
 
 """Fonction qui enroule un nombre dans un intervalle [0; a]"""
 def wrap(x, a):
@@ -23,6 +23,14 @@ def clamp(x, a, b):
     if x < a: return a
     elif x > b: return b
     else: return x
+
+"""Fonction qui retourne la somme des membres d'une liste entre deux bornes"""
+def listSum(l, a, b):
+    result = 0
+    for i, j in enumerate(l):
+        if isBetween(i, a, b):
+            result += j
+    return result
 
 """Fonction qui retourne si une valeur est entre 2 bornes"""
 def isBetween(x, a, b):
@@ -66,6 +74,15 @@ def mergeColour(c1, c2, x):
     r, g, b = int(lerp(c1[0], c2[0], x)), int(lerp(c1[1], c2[1], x)), int(lerp(c1[2], c2[2], x))
     return RGBToHex((r, g, b))
 
+"""Fonction qui met à jour les couleurs d'une frame de score"""
+def scoreBoardUpdateColours(frame):
+    frame.canvas.itemconfig(frame.rec1, fill=colour["white"])
+    frame.canvas.itemconfig(frame.rec2, fill=colour["black"])
+    frame.canvas.itemconfig(frame.rec3, fill=colour["black"])
+    frame.canvas.itemconfig(frame.rec4, fill=colour["white"])
+    frame.blackPlayerScore.configure(bg=colour["white"])
+    frame.whitePlayerScore.configure(bg=colour["black"])
+
 """Fonction qui définit la couleur d'une case"""
 def caseColour(i, j, col):
     if col != -1:
@@ -92,6 +109,13 @@ def intToString(integer):
     else:
         return str(integer)
 
+"""Fonction qui coupe un string trop long à N caractères"""
+def cutString(str, c):
+    if len(str) >= c:
+        return str[:c] + "..."
+    else:
+        return str
+
 """Fonction qui convertit des coordonnées d'index de tableau en pixels et vice verse"""
 def pixelToCell(x):
     return (x // bSize)
@@ -100,7 +124,7 @@ def cellToPixel(x):
 
 """Fonction qui convertit des coordonnées du board en coordonnées du frame"""
 def boardToFrame(a, xOrY):
-    boardBorder = 4
+    boardBorder = 5
     titleHeight = 50
     if xOrY == "x": return a + boardBorder
     if xOrY == "y": return a + titleHeight + boardBorder
