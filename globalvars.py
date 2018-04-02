@@ -28,7 +28,7 @@ highlightStuck = False
 nothingHappened = 0
 
 aiState = None
-if (optionvars.humanPlayer == player and optionvars.ai == 0): aiState = True
+if (optionvars.humanPlayer == player or optionvars.ai == 0): aiState = True
 aiCoords = (0, 0)
 aiInCombo = 0
 gameEnd = False
