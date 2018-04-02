@@ -130,12 +130,14 @@ class Counter:
     #https://stackoverflow.com/questions/35088139/how-to-make-a-thread-safe-global-counter-in-python
     def __init__(self, initialValue=0):
         self.value = initialValue
+        self.value2 = initialValue
         self.lock = threading.Lock()
         self.startTime = time.time()
     def increment(self):
         with self.lock:
             self.value += time.time() - self.startTime
             self.startTime = time.time()
+            self.value2 += 1
 
 """-----------------------------------------------------TREE---------------------------------------------------------"""
 class Tree:
@@ -220,7 +222,7 @@ def resetGame():
     counter.value = 0
     initialCount = 0
     aiState = None
-    if (optionvars.humanPlayer == player and optionvars.ai == 0): aiState = True
+    if (optionvars.humanPlayer == player or optionvars.ai == 0): aiState = True
     aiCoords = (0, 0)
     aiInCombo = 0
     moves[-1].set(0)
@@ -552,7 +554,7 @@ def click(event, i, j):
                     # Mettre à jour les mouvements possibles prématurément
                     canMove()
                     # Reset le compteur
-                    initialCount = counter.value
+                    initialCount = counter.value2
                     # Calculer le mouvement à faire
                     aiCoords = aiMoveChoice()
                     # Engager la séquence de mouvement (clics virtuels à intervalles de temps donnés)
@@ -595,7 +597,7 @@ def aiMove(playerToMove, targetMove, combo=0):
     # Si on doit faire un combo,
     if combo == 1:
         # Au moment venu,
-        if counter.value - initialCount == interval * 2.5:
+        if (counter.value2 - initialCount) == (interval * 2.5):
             # Cliquer sur la case pour bouger
             click(None, targetMove[0], targetMove[1])
             # Arrêter d'appeler cette fonction
@@ -605,13 +607,13 @@ def aiMove(playerToMove, targetMove, combo=0):
     # Si il s'agit d'un mouvement normal,
     else:
         # Au moment venu de sélectionner le joueur,
-        if counter.value - initialCount == interval:
+        if (counter.value2 - initialCount) == (interval * 1):
             # On le sélectionne
             click(None, playerToMove[0], playerToMove[1])
             # On attend encore en appelant cette fonction (pour bouger une prochaine fois)
             return None
         # Au moment venu de sélectionner une case,
-        elif counter.value - initialCount == interval*1.6:
+        elif (counter.value2 - initialCount) == (interval * 1.6):
             # On sélectionne la case, en faisant cela, la fonction highlight affecte True à aiState,
             # cela fait qu'on arrête d'appeler la fonction
             click(None, targetMove[0], targetMove[1])
@@ -633,8 +635,8 @@ initialCount = 0
 counter = Counter()
 
 #IA
-if optionvars.ai == 1 and player != optionvars.humanPlayer:
-    aiState = None
+aiState = None
+if (optionvars.humanPlayer == player or optionvars.ai == 0): aiState = True
 
 #Afficher le menu
 layoutCreate(menuFrame)
