@@ -416,6 +416,7 @@ def highlight(i, j, player, behaviour=1):
                         # Si on est l'IA, ré-appeler la fonction pour continuer la séquence de mouvements
                         aiCoords = ((i, j), (ni(2), nj(2))) #call the aiMoveChoice
                         aiInCombo = 1
+                        aiState = None
                     # En behaviour == -1, on retourne True
                     if behaviour == -1:
                         return True
@@ -598,26 +599,33 @@ def aiMoveChoice():
 def aiMove(playerToMove, targetMove, combo=0):
     # Intervalle de temps entre les clics virtuels
     interval = 30
+    selectTime = 1
+    moveTime = 1.6
+    comboTime = 0.8
+    # Temps écoulé
+    deltaTime = (counter.value2 - initialCount)
     # Si on doit faire un combo,
     if combo == 1:
         # Au moment venu,
-        if (counter.value2 - initialCount) == (interval * 2.5):
+        if (deltaTime == (interval * (moveTime + comboTime))) \
+        or (deltaTime > (interval * (moveTime + comboTime)) \
+        and (deltaTime - interval * (moveTime + comboTime))%(interval * comboTime) == 0):
             # Cliquer sur la case pour bouger
             click(None, targetMove[0], targetMove[1])
             # Arrêter d'appeler cette fonction
-            return True
+            return None
         # Sinon, on attend encore en appelant cette fonction
         else: return None
     # Si il s'agit d'un mouvement normal,
     else:
         # Au moment venu de sélectionner le joueur,
-        if (counter.value2 - initialCount) == (interval * 1):
+        if deltaTime == (interval * selectTime):
             # On le sélectionne
             click(None, playerToMove[0], playerToMove[1])
             # On attend encore en appelant cette fonction (pour bouger une prochaine fois)
             return None
         # Au moment venu de sélectionner une case,
-        elif (counter.value2 - initialCount) == (interval * 1.6):
+        elif deltaTime == (interval * moveTime):
             # On sélectionne la case, en faisant cela, la fonction highlight affecte True à aiState,
             # cela fait qu'on arrête d'appeler la fonction
             click(None, targetMove[0], targetMove[1])
@@ -646,7 +654,7 @@ def aiGain(aiPlayer):
                 bestmoves.append([token, move])
                 maxgain = tempgain
             elif tempgain == maxgain:
-                bestmoves.append([token,move])
+                bestmoves.append([token, move])
     if len(bestmoves) > 1:
         test = random.choice(bestmoves)
         return(test)
