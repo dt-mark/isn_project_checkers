@@ -51,6 +51,21 @@ def empty(i, j):
     if players[i][j] == -1: return True
     else: return False
 
+"""Fonction qui détecte si un élément est dans une liste et qui retourne ses index"""
+def listCompare(element, list):
+    for i in range(len(list)):
+        for j in range(len(list)):
+            if element == list[i][j]:
+                return i, j
+    return -1
+"""Fonction qui détecte si un élément est dans un dictionnaire (dont les valeurs sont des listes) et qui retourne ses index"""
+def dictCompare(element, dict):
+    for i in dict.keys():
+        for j in range(len(dict[i])):
+            if element == dict[i][j]:
+                return i, j
+    return -1
+
 """Fonction qui retourne le type de la case"""
 def case(i, j):
     if (i % 2 == 0 and j % 2 == 0) \
@@ -123,7 +138,7 @@ def cutString(str, c):
     else:
         return str
 
-"""Fonction qui convertit des coordonnées d'index de tableau en pixels et vice verse"""
+"""Fonction qui convertit des coordonnées d'index de tableau en pixels et vice versa"""
 def pixelToCell(x):
     return (x // bSize)
 def cellToPixel(x):
