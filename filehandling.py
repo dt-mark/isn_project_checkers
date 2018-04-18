@@ -2,6 +2,7 @@ import pickle, copy
 
 emptyDic = {"games":0, "wins":0, "losses":0, "ai":0, "notai":0, "diff":0, "col":0, "moves":0, "eats":0, "time":0}
 emptyStats = {"": emptyDic}
+
 emptyOptions = {"ai": 1, "humanPlayer": -1, "difficulty": 0, "gColours":0}
 
 def readFile(filename, default):
@@ -41,3 +42,4 @@ def configStats(file=readFile("stats", emptyStats), name="", games=0, wins=0, lo
     saveObj(stats, "stats")
 
 stats = readFile("stats", emptyStats)
+options = readFile("options", emptyOptions)
