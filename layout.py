@@ -1,8 +1,9 @@
 from tkinter import *
 from tkinter import ttk
 from math import *
+from winsound import *
 from collections import OrderedDict
-import os, gc
+import webbrowser, threading, os, gc
 
 from constants import *
 from globalvars import *
@@ -62,7 +63,7 @@ class Button:
             caller.arrowSpace = 1
         if anim == 1:
             caller.size -= 4
-        #Sound(sound["click"])
+        Sound(sound["click"])
         func(event)
     def changeFunction(self, func):
         self.func = func
@@ -71,8 +72,17 @@ class Button:
     def update(self):
         self.counter += 1
         if self.disabled:
-            self.canvas.itemconfig(self.canvas.label, \
-                                   fill=mergeColour(RGBToHex((0, 0, 0)), RGBToHex((255, 255, 255)), 0.75))
+            if self.animationType == 0:
+                self.canvas.itemconfig(self.arrow1, outline="white")
+                self.canvas.itemconfig(self.arrow2, outline="white")
+                self.canvas.configure(bg="white")
+                self.canvas.itemconfig(self.canvas.label, \
+                                       fill=mergeColour(RGBToHex((0, 0, 0)), RGBToHex((255, 255, 255)), 0.60))
+                self.canvas.size = self.size
+            if self.animationType == 1:
+                self.canvas.itemconfig(self.canvas.label, \
+                                       fill=mergeColour(RGBToHex((0, 0, 0)), RGBToHex((255, 255, 255)), 0.75))
+                self.canvas.size = self.size
         else:
             if self.animationType == 0:
                 RGBcolourA = mergeColour(RGBToHex((75, 75, 75)), RGBToHex((255, 255, 255)), self.canvas.colourA)
@@ -85,6 +95,7 @@ class Button:
                 self.canvas.configure(bg=RGBcolourB)
                 self.canvas.coords(self.arrow1, ax1 + 10, self.hh / 2, ax1, 0 + 5, ax1, self.hh - 5)
                 self.canvas.coords(self.arrow2, ax2 - 10, self.hh / 2, ax2, 0 + 5, ax2, self.hh - 5)
+                self.canvas.itemconfig(self.canvas.label, fill="black")
                 self.canvas.size = lerp(self.canvas.size, self.size, 0.2)
             if self.animationType == 1:
                 RGBcolourT = mergeColour(self.canvas.colour, RGBToHex((255, 255, 255)), self.canvas.colourT)
@@ -306,6 +317,18 @@ class PieChart:
                                         font=(mainFont, 12, "bold"), fill=self.colour[element])
                 side += 1
 
+"""-----------------------------------------------------SOUND--------------------------------------------------------"""
+class Sound(threading.Thread):
+    def __init__(self, _name):
+        threading.Thread.__init__(self)
+        self.name = _name
+        PlaySound(self.name, SND_FILENAME | SND_ASYNC)
+    def run(self):
+        # Get lock to synchronize threads
+        threadLock.threading.acquire()
+        # Free lock to release next thread
+        threadLock.threading.release()
+
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
 """------------------------------------------------------------------------------------------------------------------"""
@@ -331,6 +354,11 @@ def gameRestartPopup(event):
 def gameQuitPopup(event):
     Popup(text="Voulez-vous quitter?", subtext="Vous perdrez la progression de la partie! \n", \
           textOption1="Oui", textOption2="Non", funcOption1=gameQuit, funcOption2=-1)
+def gameCancel(event):
+    if len(optionvars.gSaves) <= 1: gameCancelText.disabled = 1
+    else: gameCancelText.disabled = 0
+    undo.set(1)
+    resetCaseColour()
 def gameRestart(event):
     restart.set(1)
     resetCaseColour()
@@ -338,17 +366,6 @@ def gameQuit(event):
     gameRestart(0)
     menuOptionsButton.disabled = False
     layoutCreate(menuFrame)
-def gameCancel(event):
-    global winner
-    print("gameCancel")
-    #Debug
-    if optionvars.ai == 1:
-        endStr = "{0} gagné\n{1} perdu".format("Vous avez" if winner.get() != optionvars.humanPlayer else "La machine a", \
-                                               "La machine a" if winner.get() != optionvars.humanPlayer else "Vous avez",)
-    else:
-        endStr = "Le joueur {0} a gagné\nLe joueur {1} a perdu".format("BLANC" if winner.get() == -1 else "NOIR", \
-                                                                       "NOIR" if winner.get() == -1 else "BLANC")
-    Popup(text="La partie est terminée!", subtext=endStr, twoPlayers=optionvars.ai==0, type=1)
 def gameSaveName(event):
     global winner
     names = []
@@ -478,13 +495,14 @@ def updateStatValue(name, row, text):
         name[row].configure(text=text)
 def updateStatsValues(event=None):
     entryText = statsSearch.get()
-    if entryText != "": searchPattern = re.compile('^' + entryText if len(entryText) < 2 else entryText)
+    if entryText != "": searchPattern = re.compile('^'+entryText+'|'+'\s+'+entryText)
     else: searchPattern = re.compile('')
     noStatsValues()
     stats = readFile("stats", emptyStats)
     tempSortedStats = {}
     for i in stats.keys():
-        if i != "" and searchPattern.search(i):
+        match = searchPattern.search(i)
+        if i != "" and match:
             tempSortedStats[i] = (stats[i]["wins"], stats[i]["games"])
     #t[1] contient un tuple avec le nombre de victoires et le nombre de jeux
     tempSortedStats = OrderedDict(sorted(tempSortedStats.items(), reverse=True, key=lambda t: (t[1][0], t[1][0]/t[1][1])))
@@ -603,6 +621,7 @@ gameSideFrame2.grid_columnconfigure(0, minsize=400)
 """Boutons"""
 gameCancelText = Button(gameSideFrame2, text="ANNULER", func=gameCancel, size=15)
 gameCancelText.canvas.grid(row=2, column=0)
+gameCancelText.disabled = 1
 gameRestartText = Button(gameSideFrame2, text="REDEMARRER", func=gameRestartPopup, size=15)
 gameRestartText.canvas.grid(row=3, column=0)
 gameQuitText = Button(gameSideFrame2, text="QUITTER", func=gameQuitPopup, size=15)
