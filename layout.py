@@ -494,7 +494,7 @@ def updateStatValue(name, row, text):
     else:
         name[row].configure(text=text)
 def updateStatsValues(event=None):
-    entryText = statsSearch.get()
+    entryText = statsSearch.get().lower()
     if entryText != "": searchPattern = re.compile('^'+entryText+'|'+'\s+'+entryText)
     else: searchPattern = re.compile('')
     noStatsValues()
