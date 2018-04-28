@@ -685,55 +685,101 @@ def aiMoveChoice(specificPlayer=None):
         targetMove = random.choice(possibleMoves)
         # On retourne le jeton et le mouvement choisi
         return (playerToMove, targetMove)
-    # En autre difficulté
-    else:
-        bestmove = aiGain(specificPlayer=specificPlayer)
+    # En difficulté 1
+    elif optionvars.difficulty == 1:
+        bestmove = aiGain(-optionvars.humanPlayer, specificPlayer=specificPlayer)
         return (bestmove[0],bestmove[1])
+    # Pour le reste des difficultés
+    else:
+        bestmove = minmax(optionvars.difficulty)
+        return (bestmove[0], bestmove[1])
 
 """Fonction qui retourne le mouvement avec le gain le plus haut"""
-def aiGain(specificPlayer=None):
+def aiGain(tempPlayer, specificPlayer=None):
     global players
-    aiPlayer = -optionvars.humanPlayer
-    maxgain = -999 #TODO: Solution plus élegante pour valeur initiale de maxgain
+    maxgain = -999 # Solution pas élegante pour valeur initiale de maxgain
     bestmoves = list()
     if not specificPlayer:
-        playersToCheck = onePlayerCanMove[aiPlayer][1:]
+        playersToCheck = onePlayerCanMove[tempPlayer][1:]
     else:
         playersToCheck = (specificPlayer,)
     for token in playersToCheck:
-        possibleMoves = highlight(token[0], token[1], aiPlayer, behaviour=-3)
+        possibleMoves = highlight(token[0], token[1], tempPlayer, behaviour=-3)
         for move in possibleMoves:
             tempgain = 0
             # Si on devient un super jéton
-            if ((move[1] == 0 and aiPlayer == -1) or (move[1] == gSize - 1 and aiPlayer == 1)) and players[token[0]][token[1]].super == False:
+            if ((move[1] == 0 and tempPlayer == -1) or (move[1] == gSize - 1 and tempPlayer == 1)) and players[token[0]][token[1]].super == False:
                 tempgain += 2
             # Si on bouge devant un jeton qui peut nous manger
             for direction in [-1, 1]:
-                if (players[move[0]+aiPlayer*direction][move[1]+aiPlayer] != -1 and players[move[0]+aiPlayer*direction][move[1]+aiPlayer].type == -aiPlayer):
+                if (players[move[0]+tempPlayer*direction][move[1]+tempPlayer] != -1 and players[move[0]+tempPlayer*direction][move[1]+tempPlayer].type == -tempPlayer):
                     tempgain += -1
             # On encourage que l'IA se déplace vers les bordures pour se protéger
             if move[0] == 0 or move[0] == 9:
                 tempgain += 1.5  
-            # On voit si le gain est supérieur ou pas
-            if tempgain > maxgain:
-                bestmoves = list()
-                bestmoves.append([token, move])
-                maxgain = tempgain
-            elif tempgain == maxgain:
-                bestmoves.append([token, move])
+            # Selection du mouvement avec difficulté < 2
+            if optionvars.difficulty < 2:
+                if tempgain > maxgain:
+                    bestmoves = list()
+                    bestmoves.append([token, move])
+                    maxgain = tempgain
+                elif tempgain == maxgain:
+                    bestmoves.append([token, move])
+            else:
+                bestmoves.append([token, move, tempgain])
     if len(bestmoves) > 1:
-        test = random.choice(bestmoves)
-        return(test)
+        if optionvars.difficulty < 2:
+            choice = random.choice(bestmoves)
+            return(choice)
+        else:
+            return(bestmoves)
     # S'il y a pas de mouvements possibles (fin du jeu)
     elif len(bestmoves) == 0:
-        print("pas de mouvements possibles")
-        victory()
+        if optionvars.difficulty < 2:
+            victory()
+        else:
+            return(bestmoves)
     else:
+        if optionvars.difficulty > 1:
+            bestmoves[0].append(tempgain)
+            return (bestmoves)
         return(bestmoves[0])
 
+"""Fonction itératrice des mouvements"""
+def iterminmax(allmoves, tempplayers, superstatus, depth):
+    # Si on a prédit suffisament de mouvements, on va vers l'arrière
+    if depth > difficulty*2:
+        print("Way too deep")
+
+
+    # How to change stuff
+    # players[new_i][new_j] = players[old_i][old_j]
+    # players[old_i][old_j] = -1
+
+
 """Fonction minmax qui prédit des mouvements à l'avance"""
-def minmax():
-    print("TODO")
+def minmax(difficulty):
+    allmoves = Tree()
+    # Premier mouvement de l'IA
+    moves = aiGain(-optionvars.humanPlayer)
+    allmoves.add(moves)
+    # Liste temporaire des pjetons
+    tempplayers = copy.deepcopy(players)
+    # Liste temporaire des jetons super
+    superstatus = [[0 for i in range (10)]for i in range(10)]
+    for i in range(0, 10):
+        for j in range(0, 10):
+            if players[i][j] != -1 and players[i][j].super:
+                superstatus[i][j] = 1
+            else:
+                superstatus[i][j] = 0
+    # On prédit pour chaque mouvement
+    chosenmove = iterminmax(allmoves, tempplayers, superstatus, 0)
+
+    return moves[0][0], moves[0][1]
+    # should return the final best move, like [(1,6), (0,5)]
+    # return chosenmove
+
 
 """Fonction qui éxécute le mouvement de la machine"""
 def aiMove(playerToMove, targetMove, combo=0):
