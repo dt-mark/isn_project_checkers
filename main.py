@@ -390,8 +390,15 @@ def turnSuper(i, j):
     nothingHappened = 0
 
 """Fonction qui check si on un jeton peut en manger un autre"""
-def canMove():
-    global player, players, onePlayerCanEat, onePlayerCanMove, aiCoords, superPlayers
+def canMove(variables="global"):
+    if variables == "global":
+        global player, players, superPlayers, onePlayerCanEat, onePlayerCanMove
+    else:
+        player = variables[0]
+        players = variables[1]
+        superPlayers = variables[2]
+        onePlayerCanEat = variables[3]
+        onePlayerCanMove = variables[4]
     # Reset les dictionnnaires déterminant quels joueurs peuvent bouger ou manger/capturer
     onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
     onePlayerCanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
@@ -418,38 +425,49 @@ def canMove():
                         # Si le couleur de la case n'est pas déjà verte
                         if c[pi][pj] != colour["green"]:
                             # Colorier la case en rouge
-                            caseColour(pi, pj, colour["red"])
+                            if variables == "global":
+                                caseColour(pi, pj, colour["red"])
+                            else:
+                                resetCaseColour(withGreen=1)
                         # Sinon,
                         else:
                             # Annuler toutes les couleurs rouges et arrêter d'executer la fonction
                             resetCaseColour(withGreen=1)
-                            return
+                            return onePlayerCanMove
         # Si on check si le joueur peut manger un autre,
         if be == -1:
             # Si le joueur peut effectivement en manger un autre,
             if onePlayerCanEat != {-1: [(-1, -1)], 1: [(-1, -1)]}:
                 # Arrêter d'exécuter la fonction (on check pas si il peut bouger, il faut qu'il mange obligatoirement)
-                return
+                return onePlayerCanMove
             # Sinon,
             else:
                 # On check si on peut bouger
                 continue
+    return onePlayerCanMove
 
 """Fonction qui check où on peut aller"""
-def highlight(i, j, player, behaviour=1):
+def highlight(i, j, player, behaviour=1, variables="global"):
     # Cette fonction retourne/fait différentes choses selon l'argument "behaviour"
     # behaviour == -3: retourne une liste de coordonnées indiquant les différents mouvements que le jeton peut faire
     # behaviour == -2: retourne True si on peut bouger d'une case
     # behaviour == -1: retourne True si on peut manger un autre jeton
     # behaviour ==  0: met en place un combo si possible (se ré-appelle en behaviour == 1, change des variables...)
     # behaviour ==  1: colorie les cases sur lesquelles le jeton peut bouger en vert
-    global selectedPlayer, highlightStuck, onePlayerCanEat, aiCoords, aiInCombo, players
+    if variables == "global":
+        global selectedPlayer, highlightStuck, onePlayerCanEat, aiCoords, aiInCombo, players, superPlayers
+    else:
+        players = variables[0]
+        superPlayers = variables[1]
     # Variable stoquant les mouvements possibles (pour behaviour = -3)
     possibleMoves = []
     # Direction verticale (en haut ou en bas, selon le joueur)
     direction1 = [player]
     # Si le jeton est super, il peut aller dans la direction verticale opposée
-    if players[i][j] != -1 and players[i][j].super: direction1.append(-player)
+    if variables == "global":
+        if players[i][j] != -1 and players[i][j].super: direction1.append(-player)
+    else:
+        if superPlayers[i][j]: direction1.append(-player)
     # Directions horizontales (droite et gauche)
     direction2 = [-1, 1]
     # On check pour toutes les directions
@@ -665,121 +683,153 @@ def click(event, i, j):
     # On check si quelqu'un a gagné
     victory()
 
-"""Fonction qui détermine le mouvement de la machine"""
-def aiMoveChoice(specificPlayer=None):
-    global difficulty, onePlayerCanMove, player, highlightStuck, gameEnd
-    if gameEnd: return
-    # Le joueur IA est l'inverse du joueur humain
-    aiPlayer = -optionvars.humanPlayer
-    # En difficulté 0,
-    if optionvars.difficulty == 0:
-        # On choisit un jeton aléatoire des jetons pouvant bouger
-        if not specificPlayer:
-            try: playerToMove = random.choice(onePlayerCanMove[aiPlayer][1:])
-            except: return
-        else:
-            playerToMove = specificPlayer
-        # On détermine les mouvements que ce jeton peut faire
-        possibleMoves = highlight(playerToMove[0], playerToMove[1], aiPlayer, behaviour=-3)
-        # On choisit un de ces mouvements au hazard
-        targetMove = random.choice(possibleMoves)
-        # On retourne le jeton et le mouvement choisi
-        return (playerToMove, targetMove)
-    # En difficulté 1
-    elif optionvars.difficulty == 1:
-        bestmove = aiGain(-optionvars.humanPlayer, specificPlayer=specificPlayer)
-        return (bestmove[0],bestmove[1])
-    # Pour le reste des difficultés
+"""Fonction qui détermine le gain d'un mouvement"""
+def movementGain(token, move, variables="global"):
+    if variables == "global":
+        global player, players
     else:
-        bestmove = minmax(optionvars.difficulty)
-        return (bestmove[0], bestmove[1])
+        player = variables[0]
+        players = variables[1]
+    tokenGain = 0
+    # Si on bouge pour devenir un super jeton
+    if ((move[1] == 0 and player == -1) or (move[1] == gSize - 1 and player == 1)) \
+    and players[token[0]][token[1]].super == False:
+        tokenGain += 2
+    # Si on bouge devant un jeton qui peut nous manger
+    for direction in [-1, 1]:
+        if (players[move[0] + player * direction][move[1] + player] != -1 \
+        and players[move[0] + player * direction][move[1] + player].type == -player):
+            tokenGain -= 1
+    # Si on se déplace vers une bordure
+    if move[0] == 0 or move[0] == 9:
+        tokenGain += 1.5
+    return tokenGain
 
-"""Fonction qui retourne le mouvement avec le gain le plus haut"""
-def aiGain(tempPlayer, specificPlayer=None):
-    global players
-    maxgain = -999 # Solution pas élegante pour valeur initiale de maxgain
-    bestmoves = list()
-    if not specificPlayer:
-        playersToCheck = onePlayerCanMove[tempPlayer][1:]
+"""Fonction qui retourne un mouvement aléatoire"""
+def aiRandomChoice(specificPlayer=None):
+    global onePlayerCanMove
+    # On choisit un jeton aléatoire des jetons pouvant bouger
+    if specificPlayer == None:
+        try: playerToMove = random.choice(onePlayerCanMove[-optionvars.humanPlayer][1:])
+        except: return
     else:
-        playersToCheck = (specificPlayer,)
+        playerToMove = specificPlayer
+    # On détermine les mouvements que ce jeton peut faire
+    possibleMoves = highlight(playerToMove[0], playerToMove[1], -optionvars.humanPlayer, behaviour=-3)
+    # On choisit un de ces mouvements au hazard
+    targetMove = random.choice(possibleMoves)
+    return (playerToMove, targetMove)
+
+"""Fonction qui retourne le mouvement avec le gain le plus haut en difficulté 1"""
+def aiSimpleChoice(playerVar=-optionvars.humanPlayer, variables="global", specificPlayer=None):
+    if variables == "global":
+        global players, superPlayers
+    else:
+        players = variables[0]
+        superPlayers = variables[1]
+    # Initialisation
+    maxGain = -999
+    bestMoves = list()
+    pcanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
+    pcanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
+    pcanMove = canMove(variables=(playerVar, players, superPlayers, pcanEat, pcanMove))
+    if specificPlayer == None: playersToCheck = pcanMove[playerVar][1:]
+    else: playersToCheck = (specificPlayer,)
+    # On itère dans la liste des joueurs
     for token in playersToCheck:
-        possibleMoves = highlight(token[0], token[1], tempPlayer, behaviour=-3)
+        possibleMoves = highlight(token[0], token[1], playerVar, behaviour=-3, variables=(players, superPlayers))
         for move in possibleMoves:
-            tempgain = 0
-            # Si on devient un super jéton
-            if ((move[1] == 0 and tempPlayer == -1) or (move[1] == gSize - 1 and tempPlayer == 1)) and players[token[0]][token[1]].super == False:
-                tempgain += 2
-            # Si on bouge devant un jeton qui peut nous manger
-            for direction in [-1, 1]:
-                if (players[move[0]+tempPlayer*direction][move[1]+tempPlayer] != -1 and players[move[0]+tempPlayer*direction][move[1]+tempPlayer].type == -tempPlayer):
-                    tempgain += -1
-            # On encourage que l'IA se déplace vers les bordures pour se protéger
-            if move[0] == 0 or move[0] == 9:
-                tempgain += 1.5  
-            # Selection du mouvement avec difficulté < 2
-            if optionvars.difficulty < 2:
-                if tempgain > maxgain:
-                    bestmoves = list()
-                    bestmoves.append([token, move])
-                    maxgain = tempgain
-                elif tempgain == maxgain:
-                    bestmoves.append([token, move])
-            else:
-                bestmoves.append([token, move, tempgain])
-    if len(bestmoves) > 1:
-        if optionvars.difficulty < 2:
-            choice = random.choice(bestmoves)
-            return(choice)
-        else:
-            return(bestmoves)
-    # S'il y a pas de mouvements possibles (fin du jeu)
-    elif len(bestmoves) == 0:
-        if optionvars.difficulty < 2:
-            victory()
-        else:
-            return(bestmoves)
+            tempGain = movementGain(token, move, variables=(playerVar, players))
+            if tempGain > maxGain:
+                bestMoves = list()
+                bestMoves.append([token, move])
+                maxGain = tempGain
+            elif tempGain == maxGain:
+                bestMoves.append([token, move])
+    # S'il y a plusieurs gains maximaux
+    if len(bestMoves) > 1:
+        return random.choice(bestMoves)
+    # S'il y a pas de mouvements possibles
+    elif len(bestMoves) == 0:
+        victory()
+        return 0
+    # S'il y a un seul gain maximal
     else:
-        if optionvars.difficulty > 1:
-            bestmoves[0].append(tempgain)
-            return (bestmoves)
-        return(bestmoves[0])
+        return bestMoves[0]
 
 """Fonction itératrice des mouvements"""
-def iterminmax(allmoves, tempplayers, superstatus, depth):
-    # Si on a prédit suffisament de mouvements, on va vers l'arrière
-    if depth > difficulty*2:
-        print("Way too deep")
-
-
-    # How to change stuff
-    # players[new_i][new_j] = players[old_i][old_j]
-    # players[old_i][old_j] = -1
-
+def minMax(allMoves, tempPlayers, tempSuperPlayers, depth, specificPlayer=None):
+    global players
+    tempPlayers = copy.deepcopy(tempPlayers)
+    tempSuperPlayers = copy.deepcopy(tempSuperPlayers)
+    print("---")
+    aiPlayer = -optionvars.humanPlayer
+    # On obtient une liste de joueurs qui peuvent bouger
+    aiCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
+    aiCanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
+    aiCanMove = canMove(variables=(aiPlayer, tempPlayers, tempSuperPlayers, aiCanEat, aiCanMove))
+    # On itère dans cette liste de joueurs
+    if specificPlayer == None: playersToCheck = aiCanMove[aiPlayer][1:]
+    else: playersToCheck = (specificPlayer,)
+    for token in playersToCheck:
+        # On itère dans les mouvements qu'ils peuvent faire
+        possibleMoves = highlight(token[0], token[1], aiPlayer, behaviour=-3, variables=(tempPlayers, tempSuperPlayers))
+        for move in possibleMoves:
+            # On leur assigne un gain et on les ajoute à l'arbre de mouvements
+            tempGain = movementGain(token, move, variables=(aiPlayer, tempPlayers))
+            allMoves.add((token, move, tempGain))
+            # On modifie les listes virtuelles des joueurs et des super joueurs
+            tempPlayers[move[0]][move[1]] = tempPlayers[token[0]][token[1]]
+            tempPlayers[token[0]][token[1]] = -1
+            if ((move[1] == 0 and aiPlayer == -1) or (move[1] == gSize - 1 and aiPlayer == 1)) \
+            and tempSuperPlayers[move[0]][move[1]] == -1:
+                tempSuperPlayers[token[0]][token[1]] = -1;
+                tempSuperPlayers[move[0]][move[1]] = 1;
+            # Simulation d'un mouvement humain
+            humanMove = aiSimpleChoice(-aiPlayer, variables=(tempPlayers, tempSuperPlayers), specificPlayer=specificPlayer)
+            # On modifie les listes virtuelles des joueurs et des super joueurs
+            tempPlayers[humanMove[1][0]][humanMove[1][1]] = tempPlayers[humanMove[0][0]][humanMove[0][1]]
+            tempPlayers[humanMove[0][0]][humanMove[0][1]] = -1
+            if ((humanMove[1][1] == 0 and -aiPlayer == -1) or (humanMove[1][1] == gSize - 1 and -aiPlayer == 1)) \
+            and tempSuperPlayers[humanMove[1][0]][humanMove[1][1]] == -1:
+                tempSuperPlayers[humanMove[0][0]][humanMove[0][1]] = -1;
+                tempSuperPlayers[humanMove[1][0]][humanMove[1][1]] = 1;
+    # Repeat from the start (get all move possibilities, etc)
+    if depth < optionvars.difficulty:
+        depth += 1
+        allMoves = minMax(allMoves, tempPlayers, tempSuperPlayers, depth, specificPlayer=specificPlayer)
+    return allMoves
 
 """Fonction minmax qui prédit des mouvements à l'avance"""
-def minmax(difficulty):
-    allmoves = Tree()
-    # Premier mouvement de l'IA
-    moves = aiGain(-optionvars.humanPlayer)
-    allmoves.add(moves)
-    # Liste temporaire des pjetons
-    tempplayers = copy.deepcopy(players)
-    # Liste temporaire des jetons super
-    superstatus = [[0 for i in range (10)]for i in range(10)]
-    for i in range(0, 10):
-        for j in range(0, 10):
-            if players[i][j] != -1 and players[i][j].super:
-                superstatus[i][j] = 1
-            else:
-                superstatus[i][j] = 0
-    # On prédit pour chaque mouvement
-    chosenmove = iterminmax(allmoves, tempplayers, superstatus, 0)
+def aiComplexChoice(specificPlayer=None):
+    global players, superPlayers
+    aiPlayer = -optionvars.humanPlayer
+    difficulty = optionvars.difficulty
+    allMoves = Tree()
+    depthCounter = 1
+    tempPlayers = copy.deepcopy(players)
+    tempSuperPlayers = copy.deepcopy(superPlayers)
+    allMoves = minMax(allMoves, tempPlayers, tempSuperPlayers, depthCounter, specificPlayer=specificPlayer)
+    # Sort the tree
+    # Get best base branch and return it
+    bestMove = aiRandomChoice(specificPlayer=specificPlayer)
+    return bestMove
 
-    return moves[0][0], moves[0][1]
-    # should return the final best move, like [(1,6), (0,5)]
-    # return chosenmove
-
+"""Fonction qui détermine le mouvement de la machine"""
+def aiMoveChoice(specificPlayer=None):
+    global gameEnd
+    if gameEnd: return
+    # En difficulté 0
+    if optionvars.difficulty == 0:
+        bestMove = aiRandomChoice(specificPlayer=specificPlayer)
+    # En difficulté 1
+    elif optionvars.difficulty == 1:
+        bestMove = aiSimpleChoice(specificPlayer=specificPlayer)
+    # En difficulté supérieure
+    else:
+        bestMove = aiComplexChoice(specificPlayer=specificPlayer)
+    # Retour du meilleur mouvement
+    return (bestMove[0], bestMove[1])
 
 """Fonction qui éxécute le mouvement de la machine"""
 def aiMove(playerToMove, targetMove, combo=0):
