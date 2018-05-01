@@ -853,8 +853,6 @@ def aiComplexChoice(specificPlayer=None):
     tempSuperPlayers = copy.deepcopy(superPlayers)
     allMoves = minMax(allMoves, tempPlayers, tempSuperPlayers, depthCounter, specificPlayer=specificPlayer)
     # Sort the tree
-    allMoves.sortTree()
-
     # Get best base branch and return it
     bestMove = aiRandomChoice(specificPlayer=specificPlayer)
     return bestMove
