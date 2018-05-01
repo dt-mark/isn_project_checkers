@@ -174,7 +174,9 @@ class Tree:
             beginning = ".node[" if len(args) > 1 and (j != len(args) - 1) else ".nodeData["
             path += beginning + str(i) + "]"
         return eval(path)
-
+    def lastBranches(self):
+        last = optionvars.difficulty * 2
+        return
 
 """------------------------------------------------------------------------------------------------------------------"""
 """---------------------------------------------------FONCTIONS------------------------------------------------------"""
@@ -692,12 +694,10 @@ def movementGain(token, move, _player, _players, _superPlayers):
 
 """Copies de fonctions de jeu adaptées pour le système de l'IA"""
 def aiCanMove(_player, _players, _superPlayers, _onePlayerCanEat, _onePlayerCanMove):
-    _onePlayerCanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
-    _onePlayerCanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
     for be in [-1, -2]:
         for pi in range(gSize):
             for pj in range(gSize):
-                if _players[pi][pj] != -1 and int(_players[pi][pj]) == player:
+                if _players[pi][pj] != -1 and int(_players[pi][pj]) == _player:
                     if aiHighlight(pi, pj, _player, _players, _superPlayers, behaviour=be):
                         # S'il peut manger
                         if be == -1:
@@ -712,6 +712,7 @@ def aiCanMove(_player, _players, _superPlayers, _onePlayerCanEat, _onePlayerCanM
                 return _onePlayerCanMove
             # Sinon,
             else: continue
+        print(_onePlayerCanMove)
     return _onePlayerCanMove
 def aiHighlight(i, j, _player, _players, _superPlayers, behaviour=-3):
     global highlightStuck, players
@@ -750,9 +751,8 @@ def minMax(allMoves, tempPlayers, tempSuperPlayers, depth, specificPlayer=None):
     global players
     aiPlayer = -optionvars.humanPlayer
     # On obtient une liste de joueurs qui peuvent bouger
-    CanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
-    CanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
-    CanMove = aiCanMove(aiPlayer, tempPlayers, tempSuperPlayers, CanEat, CanMove)
+    CanMove = aiCanMove(aiPlayer, tempPlayers, tempSuperPlayers,
+                        {-1: [(-1, -1)], 1: [(-1, -1)]}, {-1: [(-1, -1)], 1: [(-1, -1)]})
     # On itère dans cette liste de joueurs
     if specificPlayer == None:
         playersToCheck = CanMove[aiPlayer][1:]
@@ -761,10 +761,11 @@ def minMax(allMoves, tempPlayers, tempSuperPlayers, depth, specificPlayer=None):
     for token in playersToCheck:
         # On itère dans les mouvements qu'ils peuvent faire
         possibleMoves = aiHighlight(token[0], token[1], aiPlayer, tempPlayers, tempSuperPlayers, behaviour=-3)
-        for move in possibleMoves:
+        for m, move in enumerate(possibleMoves):
             # On leur assigne un gain et on les ajoute à l'arbre de mouvements
             tempGain = movementGain(token, move, aiPlayer, tempPlayers, superPlayers)
-            allMoves.add((token, move, tempGain))
+            allMoves.add((0, 0, 0))
+            allMoves.node[m].add(((token, move, tempGain)))
             # On modifie les listes virtuelles des joueurs et des super joueurs
             tempPlayers[move[0]][move[1]] = tempPlayers[token[0]][token[1]]
             tempPlayers[token[0]][token[1]] = -1
@@ -779,13 +780,13 @@ def minMax(allMoves, tempPlayers, tempSuperPlayers, depth, specificPlayer=None):
             tempPlayers[humanMove[1][0]][humanMove[1][1]] = tempPlayers[humanMove[0][0]][humanMove[0][1]]
             tempPlayers[humanMove[0][0]][humanMove[0][1]] = -1
             if ((humanMove[1][1] == 0 and -aiPlayer == -1) or (humanMove[1][1] == gSize - 1 and -aiPlayer == 1)) \
-                    and tempSuperPlayers[humanMove[1][0]][humanMove[1][1]] == -1:
+            and tempSuperPlayers[humanMove[1][0]][humanMove[1][1]] == -1:
                 tempSuperPlayers[humanMove[0][0]][humanMove[0][1]] = -1
                 tempSuperPlayers[humanMove[1][0]][humanMove[1][1]] = 1
-    # Repeat from the start (get all move possibilities, etc)
-    if depth < optionvars.difficulty * 2:
-        depth += 1
-        allMoves = minMax(allMoves, tempPlayers, tempSuperPlayers, depth, specificPlayer=specificPlayer)
+            # Repeat from the start (get all move possibilities, etc)
+            if depth < optionvars.difficulty * 2:
+                depth += 1
+                allMoves = minMax(allMoves, tempPlayers, tempSuperPlayers, depth, specificPlayer=specificPlayer)
     return allMoves
 
 """Fonction qui retourne un mouvement aléatoire"""
@@ -810,9 +811,8 @@ def aiSimpleChoice(_player, _players, _superPlayers, specificPlayer=None):
     # Initialisation
     maxGain = -999
     bestMoves = list()
-    CanEat = {-1: [(-1, -1)], 1: [(-1, -1)]}
-    CanMove = {-1: [(-1, -1)], 1: [(-1, -1)]}
-    CanMove = aiCanMove(_player, _players, _superPlayers, CanEat, CanMove)
+    CanMove = aiCanMove(_player, _players, _superPlayers,
+                        {-1: [(-1, -1)], 1: [(-1, -1)]}, {-1: [(-1, -1)], 1: [(-1, -1)]})
     if specificPlayer == None:
         playersToCheck = CanMove[_player][1:]
     else:
@@ -834,7 +834,11 @@ def aiSimpleChoice(_player, _players, _superPlayers, specificPlayer=None):
     # S'il y a pas de mouvements possibles
     elif len(bestMoves) == 0:
         victory()
-        return 0
+        print("there")
+        for j in range(gSize):
+            for i in range(gSize):
+                if int(_players[i][j]) == _player:
+                    return [(i, j), (0, 0)]
     # S'il y a un seul gain maximal
     else:
         return bestMoves[0]
@@ -845,7 +849,7 @@ def aiComplexChoice(specificPlayer=None):
     aiPlayer = -optionvars.humanPlayer
     difficulty = optionvars.difficulty
     allMoves = Tree()
-    depthCounter = 1
+    depthCounter = 0
     tempPlayers = [[-1 for i in range(gSize + 1)] for j in range(gSize + 1)]
     for j in range(gSize):
         for i in range(gSize):
@@ -853,6 +857,8 @@ def aiComplexChoice(specificPlayer=None):
     tempSuperPlayers = copy.deepcopy(superPlayers)
     allMoves = minMax(allMoves, tempPlayers, tempSuperPlayers, depthCounter, specificPlayer=specificPlayer)
     # Sort the tree
+    allMoves.lastBranches()
+
     # Get best base branch and return it
     bestMove = aiRandomChoice(specificPlayer=specificPlayer)
     return bestMove
