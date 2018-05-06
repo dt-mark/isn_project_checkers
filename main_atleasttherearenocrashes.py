@@ -1,3 +1,4 @@
+#he
 from tkinter import *
 import random, time, copy, os
 
